@@ -8,6 +8,8 @@
 #include <stdio.h> // printf(), ...
 #include <stdlib.h> // exit(), ...
 #include <string.h> // strncpy(), ...
+#include <cstdlib>
+#include <ctime>
 
 #pragma comment(lib, "ws2_32") // ws2_32.lib ¸µÅ©
 
@@ -68,7 +70,9 @@ DWORD WINAPI Recv_Thread(LPVOID arg)
 
 	return 0;
 }
-DWORD WINAPI Collsion_Send_Thread(LPVOID arg) {
+
+DWORD WINAPI Collsion_Send_Thread(LPVOID arg) 
+{
 
 	char restart = 1;
 	int retval;
@@ -109,8 +113,23 @@ DWORD WINAPI Collsion_Send_Thread(LPVOID arg) {
 	LeaveCriticalSection(&cs);
 }
 
+int RandomCharacter() 
+{
+	int temp{};
+	static bool characternum[3]{ false, false, false }; 
+	srand(time(NULL));
 
-int main() {
+	do { 
+		temp = rand() % 3; 
+	} while (characternum[temp]);
+	characternum[temp] = true;
+
+	return temp + 1;
+}
+
+
+int main() 
+{
 	int retval;
 
 	WSADATA wsa;
