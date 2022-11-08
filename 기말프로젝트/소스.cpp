@@ -210,6 +210,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	Block_local[22].y = -950;
 	Block_local[22].width = 150;
 
+	// 이동 블록 테스트용 -> static int로 선언해야 값 변경 반영됨
+	static int Block_localX = 50;
+	Block_local[23].y = 500;
+	Block_local[23].width = 100;
+	static int MoveBlock;	// 방향 변수 -> 짝수일 경우 왼쪽으로 이동, 아닐 경우 오른쪽
+	// 여기 위까지 방해되면 주석 처리 해주세요
+
 	blockNum = 23;
 
 	static int Monster1_X;	//	아래쪽 몬스터 x좌표
@@ -320,7 +327,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 		Block.Load(L"Block.png");
 
-
 		GetClientRect(hWnd, &rect);
 
 		bw = BackGround.GetWidth();
@@ -422,7 +428,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 		SelectObject(mem1dc, hBitmap);
 
-
 		BackGround.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0 + CharX, bh - 1600 + CharY, 2560, 1600);
 		imgGround.Draw(mem1dc, 0 - CharX, 130 - CharY, rect.right, rect.bottom, 0, 0, gw, gh);
 		imgGround.Draw(mem1dc, rect.right - CharX, 130 - CharY, rect.right, rect.bottom, 0, 0, gw, gh);
@@ -431,9 +436,31 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 		Portal.Draw(mem1dc, Portal_X - CharX, Portal_Y - CharY - h_Portal * 1 / 4, w_Portal * 1 / 4, h_Portal * 1 / 4, 0, 0, w_Portal, h_Portal);
 
-
 		for (int i = 0; i < blockNum; i++) {
 			Block.Draw(mem1dc, Block_local[i].x - CharX, Block_local[i].y - CharY, Block_local[i].width, 60, 0, 0, w_block, h_block);	// 벽돌-
+		}
+
+		Block.Draw(mem1dc, Block_localX - CharX, Block_local[23].y - CharY, Block_local[23].width, 60, 0, 0, w_block, h_block);
+
+		// 블록 이동 코드 (현재 사용 x)
+		if (MoveBlock % 2 == 0) {
+			if (Block_localX - CharX >= 0) {
+				Block_localX -= 5;
+			}
+
+			else {
+				MoveBlock++;
+			}
+		}
+		
+		else {
+			if (Block_localX + CharX <= rect.right) {
+				Block_localX += 5;
+			}
+
+			else {
+				MoveBlock++;
+			}
 		}
 
 		//	몬스터가 블록 왼쪽, 오른쪽 끝에 도달하면 방향 바꾸는 코드
@@ -460,7 +487,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 					hit++;
 					DamageNum = 1;
 					SetTimer(hWnd, 1, 700, NULL);
-
 
 					if (hit != 0) {
 						if (hit == 1) {
@@ -651,8 +677,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			Dialog[Image_Number].Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 		}
 
-
-
 		if (jump == 1) {
 			jumpcount++;
 
@@ -722,10 +746,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 					OnBlock = 1;
 				}
 			}
-
-
 		}
-
 
 		if (DamageNum == 1) {
 			if (Monster1Turn % 2 == 0 && Monster2Turn % 2 != 0) {
@@ -866,8 +887,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_KEYDOWN:
-		if (wParam == VK_LEFT) {
+		if (wParam == VK_SPACE) {
+			jumpcount = 0;
+			jump = 1;
+			OnBlock = 0;
+		}
 
+		if (wParam == 'M') {
+			if (MapNum == 1)
+				MapNum = 0;
+			else MapNum = 1;
+		}
+
+		break;
+
+	case WM_KEYUP:
+		left = 0;
+		right = 0;
+
+		break;
+
+	case WM_CHAR:
+		if (wParam == 'A' || wParam == 'a') {
 			if (x >= rect.left) {
 				x -= 5;
 			}
@@ -890,7 +931,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			last = 1;
 		}
 
-		if (wParam == VK_RIGHT) {
+		if (wParam == 'D' || wParam == 'd') {
 			x += 5;
 
 			if (x + w3_stand[count] + 5 >= rect.right) {
@@ -919,7 +960,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			last = 2;
 		}
 
-		if (wParam == VK_UP) {
+		if (wParam == 'W' || wParam == 'w') {
 			if (x >= Portal_X - CharX && x <= Portal_X - CharX + w_Portal * 1 / 4) {
 				if (Key_Image == 0) {
 					Image_Number = 7;
@@ -933,27 +974,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			}
 		}
 
-		if (wParam == VK_SPACE) {
-			jumpcount = 0;
-			jump = 1;
-			OnBlock = 0;
-		}
-
-		if (wParam == 'M') {
-			if (MapNum == 1)
-				MapNum = 0;
-			else MapNum = 1;
-		}
-
-		break;
-
-	case WM_KEYUP:
-		left = 0;
-		right = 0;
-
-		break;
-
-	case WM_CHAR:
 		if (wParam == '1') {
 			CharNum = 1;
 

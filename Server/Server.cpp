@@ -18,7 +18,7 @@
 #define SERVERPORT 9000
 
 int cnt = 0;
-int clientNum;
+int ClientNum;
 FILE* fp;
 bool allClientReady;
 bool restart[MAX_PLAYER] = { 1,1,1 };
@@ -48,7 +48,7 @@ DWORD WINAPI Recv_Thread(LPVOID arg)
 	char buf[BUFSIZE];
 	PACKET keyEvent;
 	EnterCriticalSection(&cs);
-	int mycode = clientNum;
+	int mycode = ClientNum;
 	LeaveCriticalSection(&cs);
 
 	while (1) {
@@ -80,7 +80,7 @@ DWORD WINAPI Collsion_Send_Thread(LPVOID arg)
 	SOCKET client_sock = (SOCKET)arg;
 
 	while (1) {
-		while (clientNum != 3) Sleep(3000);
+		while (ClientNum != 3) Sleep(3000);
 
 		// 캐릭터 코드 설정
 
@@ -109,7 +109,7 @@ DWORD WINAPI Collsion_Send_Thread(LPVOID arg)
 	}
 
 	EnterCriticalSection(&cs);
-	clientNum--;
+	ClientNum--;
 	LeaveCriticalSection(&cs);
 }
 
@@ -150,7 +150,6 @@ int main()
 	retval = listen(listen_sock, SOMAXCONN);
 	if (retval == SOCKET_ERROR);// err_quit("listen()");
 
-
 	HANDLE hThread;
 
 	SOCKET client_sock;
@@ -168,7 +167,7 @@ int main()
 			break;
 		}
 
-		if (clientNum < 3) {
+		if (ClientNum < 3) {
 			hThread = CreateThread(NULL, 0, Recv_Thread, (LPVOID)client_sock, 0, NULL);
 			if (hThread == NULL) { closesocket(client_sock); }
 			else { CloseHandle(hThread); }
@@ -178,7 +177,7 @@ int main()
 			else { CloseHandle(hThread); }
 
 			EnterCriticalSection(&cs);
-			clientNum++;
+			ClientNum++;
 			LeaveCriticalSection(&cs);
 		}
 		else {
