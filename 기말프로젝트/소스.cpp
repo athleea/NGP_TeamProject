@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <stdio.h>
 #include <tchar.h>
 #include <atlImage.h>
 #pragma comment(lib, "winmm")
@@ -225,6 +226,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int KillMonster1;
 	static int KillMonster2;
 
+	static bool aDown = false;
+	static bool dDown = false;
+	static bool spaceDown = false;
+
 	switch (iMsg) {
 	case WM_CREATE:
 		PlaySound(L"start.wav", NULL, SND_ASYNC);
@@ -352,54 +357,34 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		for (int i = 0; i < 4; ++i) {
 			w_damage[i] = Damage[i].GetWidth();
 			h_damage[i] = Damage[i].GetHeight();
-		}
 
-		for (int i = 0; i < 4; ++i) {
 			w1_stand[i] = imgSprite1[i].GetWidth();
 			h1_stand[i] = imgSprite1[i].GetHeight();
-		}
 
-		for (int i = 0; i < 4; ++i) {
 			w1_run[i] = imgSprite1_runL[i].GetWidth();
 			h1_run[i] = imgSprite1_runL[i].GetHeight();
-		}
 
-		for (int i = 0; i < 4; ++i) {
 			w1_jump[i] = imgSprite1_jump[i].GetWidth();
 			h1_jump[i] = imgSprite1_jump[i].GetHeight();
-		}
 
-		for (int i = 0; i < 4; ++i) {
 			w2_stand[i] = imgSprite2[i].GetWidth();
 			h2_stand[i] = imgSprite2[i].GetHeight();
-		}
 
-		for (int i = 0; i < 4; ++i) {
 			w2_run[i] = imgSprite2_runL[i].GetWidth();
 			h2_run[i] = imgSprite2_runL[i].GetHeight();
-		}
 
-		for (int i = 0; i < 4; ++i) {
 			w2_jump[i] = imgSprite2_jump[i].GetWidth();
 			h2_jump[i] = imgSprite2_jump[i].GetHeight();
-		}
 
-		for (int i = 0; i < 4; ++i) {
 			w3_stand[i] = imgSprite3[i].GetWidth();
 			h3_stand[i] = imgSprite3[i].GetHeight();
-		}
 
-		for (int i = 0; i < 4; ++i) {
 			w3_run[i] = imgSprite3_runL[i].GetWidth();
 			h3_run[i] = imgSprite3_runL[i].GetHeight();
-		}
 
-		for (int i = 0; i < 4; ++i) {
 			w3_jump[i] = imgSprite3_jump[i].GetWidth();
 			h3_jump[i] = imgSprite3_jump[i].GetHeight();
-		}
 
-		for (int i = 0; i < 4; ++i) {
 			w_monster[i] = Monster_L[i].GetWidth();
 			h_monster[i] = Monster_R[i].GetHeight();
 		}
@@ -677,77 +662,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			Dialog[Image_Number].Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 		}
 
-		if (jump == 1) {
-			jumpcount++;
-
-			if (jumpcount <= 10) {
-				if (last == 1) {
-					x -= 7;
-					y -= 5;
-
-					if (x - 7 < 0) {
-						x = x + 7;
-					}
-
-					if (0 + CharX > 50) {
-						CharX -= 7;
-					}
-				}
-
-				if (last == 2) {
-					x += 7;
-					y -= 5;
-
-					if (CharX < bw - 2560) {
-						CharX += 7;
-					}
-				}
-
-				if (CharY <= 800)
-					CharY -= 8;
-				else if (CharY > 800)
-					CharY -= 14;
-			}
-
-			else {
-				if (last == 1) {
-					x -= 7;
-					y += 5;
-
-					if (x - 7 < 0) {
-						x = x + 7;
-					}
-
-					if (0 + CharX > 50) {
-						CharX -= 7;
-					}
-				}
-
-
-				if (last == 2) {
-					x += 7;
-					y += 5;
-
-					if (CharX < bw - 2560) {
-						CharX += 7;
-					}
-				}
-
-				if (CharY <= 800)
-					CharY += 8;
-				else if (CharY > 800)
-					CharY += 10;
-
-				if (y >= 620) {
-					y = 620;
-					CharY = 0;
-					jump = 0;
-					jumpcount = 0;
-					OnBlock = 1;
-				}
-			}
-		}
-
 		if (DamageNum == 1) {
 			if (Monster1Turn % 2 == 0 && Monster2Turn % 2 != 0) {
 				Damage[count].Draw(mem1dc, x + 20, y, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
@@ -770,27 +684,87 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			}
 		}
 
-		if (GetPixel(mem1dc, x + 40, y + 70) == RGB(37, 176, 77) && OnBlock == 0) {
+		if (true == aDown) {
+			if (x >= rect.left) {
+				x -= 5;
+			}
+
+			if (0 + CharX > 0) {
+				CharX -= 5;
+			}
+
+			left = 1;
+			right = 0;
+			last = 1;
+
+		}
+		if (true == dDown) {
+			x += 5;
+			if (x + w3_stand[count] + 5 >= rect.right) {
+				x -= 5;
+			}
+
+			if (CharX - w_stand[count] < bw - 2560 - 130) {
+				CharX += 5;
+			}
+
+			left = 0;
+			right = 1;
+			last = 2;
+
+		}
+
+		if (jump == 1) {
+			jumpcount++;
+
+			if (jumpcount < 10) {
+				y -= 5;
+				if (CharY <= 800)
+					CharY -= 8;
+				else if (CharY > 800)
+					CharY -= 14;
+			}
+
+			else if (jumpcount < 20) {
+				y += 5;
+
+				if (CharY <= 800)
+					CharY += 8;
+				else if (CharY > 800)
+					CharY += 10;
+
+			}
+			else {
+				if (GetPixel(mem1dc, x + 40, y + 70) == RGB(37, 176, 77)) {
+					OnBlock = 1;
+					jumpcount = 0;
+					jump = 0;
+				}
+				else {
+					jumpcount = 10;
+				}
+			}
+		}
+
+		if (GetPixel(mem1dc, x + 40, y + 70) == RGB(37, 176, 77) || y >= 620) {
+			OnBlock = 1;
 			jump = 0;
 			jumpcount = 0;
-			OnBlock = 1;
 		}
 
-		else if (GetPixel(mem1dc, x + 40, y + 70) != RGB(37, 176, 77) && OnBlock == 1 && jump == 0 && OnBlock == 0) {
-			jumpcount = 5;
-			jump = 1;
-		}
-
-		else if (GetPixel(mem1dc, x + 40, y + 70) == RGB(243, 216, 19)) {
+		if (GetPixel(mem1dc, x + 40, y + 70) == RGB(243, 216, 19)) {
 			if (y < Block_local[7].y - CharY && y > Block_local[15].y - CharY) {
 				KillMonster1 = 1;
 				KillNum = 1;
 			}
-
 			else {
 				KillMonster2 = 1;
 				KillNum = 1;
 			}
+		}
+		if (OnBlock == 0 && jump == 0) {
+			jump = 1;
+			jumpcount = 10;
 		}
 
 
@@ -838,6 +812,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		DeleteObject(hBitmap);
 		DeleteDC(mem1dc);
 		EndPaint(hWnd, &ps);
+
+		printf("(%d, %d), block : %d\n", x, y, OnBlock);
 
 		break;
 
@@ -888,9 +864,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 	case WM_KEYDOWN:
 		if (wParam == VK_SPACE) {
-			jumpcount = 0;
 			jump = 1;
-			OnBlock = 0;
 		}
 
 		if (wParam == 'M') {
@@ -899,67 +873,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			else MapNum = 1;
 		}
 
+		if (wParam == 'A' || wParam == 'a')
+			aDown = true;
+
+		if (wParam == 'D' || wParam == 'd')
+			dDown = true;
+
 		break;
 
 	case WM_KEYUP:
+		if (wParam == 'A' || wParam == 'a')
+			aDown = false;
+		if (wParam == 'D' || wParam == 'd')
+			dDown = false;
+
 		left = 0;
 		right = 0;
 
 		break;
 
 	case WM_CHAR:
-		if (wParam == 'A' || wParam == 'a') {
-			if (x >= rect.left) {
-				x -= 5;
-			}
-
-			if (0 + CharX > 0) {
-				CharX -= 5;
-			}
-
-
-			if (y >= 620) {
-				y = 620;
-				CharY = 0;
-				jump = 0;
-				jumpcount = 0;
-				OnBlock = 1;
-			}
-
-			left = 1;
-			right = 0;
-			last = 1;
-		}
-
-		if (wParam == 'D' || wParam == 'd') {
-			x += 5;
-
-			if (x + w3_stand[count] + 5 >= rect.right) {
-				x -= 5;
-			}
-
-			/*	if (w_stand[count] * 2 + x <= rect.right) {
-					x += 5;
-				}*/
-
-
-			if (CharX - w_stand[count] < bw - 2560 - 130) {
-				CharX += 5;
-			}
-
-			if (y >= 620) {
-				y = 620;
-				CharY = 0;
-				jump = 0;
-				jumpcount = 0;
-				OnBlock = 1;
-			}
-
-			left = 0;
-			right = 1;
-			last = 2;
-		}
-
 		if (wParam == 'W' || wParam == 'w') {
 			if (x >= Portal_X - CharX && x <= Portal_X - CharX + w_Portal * 1 / 4) {
 				if (Key_Image == 0) {
@@ -1000,7 +933,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		PostQuitMessage(0);
 
 		break;
-	}
 
+	}
+	
 	return DefWindowProc(hWnd, iMsg, wParam, lParam);
-}
+};
