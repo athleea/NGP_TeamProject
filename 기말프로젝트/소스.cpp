@@ -600,11 +600,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				imgSprite1[count].Draw(mem1dc, x, y, w1_stand[count] / 2, h1_stand[count] / 2, 0, 0, w1_stand[count], h1_stand[count]);
 			}
 
-			if (left == 1) {
+			if (left == 1 && jump == 0) {
 				imgSprite1_runL[count].Draw(mem1dc, x, y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
 			}
 
-			if (right == 1) {
+			if (right == 1 && jump == 0) {
 				imgSprite1_runR[count].Draw(mem1dc, x, y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
 			}
 
@@ -618,11 +618,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				imgSprite2[count].Draw(mem1dc, x, y, w2_stand[count] / 2, h2_stand[count] / 2, 0, 0, w2_stand[count], h2_stand[count]);
 			}
 
-			if (left == 1) {
+			if (left == 1 && jump == 0) {
 				imgSprite2_runL[count].Draw(mem1dc, x, y, w2_run[count] / 2, h2_run[count] / 2, 0, 0, w2_run[count], h2_run[count]);
 			}
 
-			if (right == 1) {
+			if (right == 1 && jump == 0) {
 				imgSprite2_runR[count].Draw(mem1dc, x, y, w2_run[count] / 2, h2_run[count] / 2, 0, 0, w2_run[count], h2_run[count]);
 			}
 
@@ -636,11 +636,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				imgSprite3[count].Draw(mem1dc, x, y, w3_stand[count] / 2, h3_stand[count] / 2, 0, 0, w3_stand[count], h3_stand[count]);
 			}
 
-			if (left == 1) {
+			if (left == 1 && jump == 0) {
 				imgSprite3_runL[count].Draw(mem1dc, x, y, w3_run[count] / 2, h3_run[count] / 2, 0, 0, w3_run[count], h3_run[count]);
 			}
 
-			if (right == 1) {
+			if (right == 1 && jump == 0) {
 				imgSprite3_runR[count].Draw(mem1dc, x, y, w3_run[count] / 2, h3_run[count] / 2, 0, 0, w3_run[count], h3_run[count]);
 			}
 
@@ -648,7 +648,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				imgSprite3_jump[count].Draw(mem1dc, x, y, w3_jump[count] / 2, h3_jump[count] / 2, 0, 0, w3_jump[count], h3_jump[count]);
 			}
 		}
-
 
 		if (Image_Number == 0) {
 			Start.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
@@ -696,8 +695,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			left = 1;
 			right = 0;
 			last = 1;
-
 		}
+
 		if (true == dDown) {
 			x += 5;
 			if (x + w3_stand[count] + 5 >= rect.right) {
@@ -711,7 +710,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			left = 0;
 			right = 1;
 			last = 2;
-
 		}
 
 		if (jump == 1) {
@@ -734,6 +732,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 					CharY += 10;
 
 			}
+
 			else {
 				if (GetPixel(mem1dc, x + 40, y + 70) == RGB(37, 176, 77)) {
 					OnBlock = 1;
@@ -746,7 +745,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			}
 		}
 
-		if (GetPixel(mem1dc, x + 40, y + 70) == RGB(37, 176, 77) || y >= 620) {
+
+		if (GetPixel(mem1dc, x + 40, y + 70) == RGB(37, 176, 77) || y == 620) {
 			OnBlock = 1;
 			jump = 0;
 			jumpcount = 0;
@@ -762,11 +762,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				KillNum = 1;
 			}
 		}
+
+		if (jump == 0 && GetPixel(mem1dc, x, y + 70) != RGB(37, 176, 77) && y != 620) {
+			OnBlock = 0;
+		}
+
 		if (OnBlock == 0 && jump == 0) {
 			jump = 1;
 			jumpcount = 10;
 		}
-
 
 		if (click != 0) {
 			if (heart == 3) {
