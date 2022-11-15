@@ -64,19 +64,19 @@ struct BLOCK {
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 {
-	HDC hdc, mem1dc;
+	HDC hdc, mem1dc, mem2dc;
 	PAINTSTRUCT ps;
 
 	COLORREF color;
 
 	BLOCK Block_local[25] = { 0 };
 
-	static HBITMAP hBitmap;
+	static HBITMAP hBitmap, hBitmap2;
 	static CImage BackGround, imgGround;
 	static CImage imgSprite1[4], imgSprite1_runR[4], imgSprite1_runL[4], imgSprite1_jump[4];
 	static CImage imgSprite2[4], imgSprite2_runR[4], imgSprite2_runL[4], imgSprite2_jump[4];
 	static CImage imgSprite3[4], imgSprite3_runR[4], imgSprite3_runL[4], imgSprite3_jump[4];
-	static CImage Start, Dialog[6], Guide, Block, Heart, Key, Portal, Clear[2], Guide2, GameOver, Monster_L[4], Monster_R[4], Map, Damage[4];
+	static CImage Start, Dialog[6], Guide, Block, Heart, Key, Portal, Clear[2], Guide2, GameOver, Monster_L[4], Monster_R[4], Map, Damage[4], Eblock[2];
 
 	static RECT rect;
 
@@ -97,6 +97,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int w_guide, h_guide;
 	static int MouseX, MouseY;
 	static int w_block, h_block;
+	static int w_eblock, h_eblock;
 	static int OnBlock = 0;
 	static int w_heart, h_heart;
 	static int w_Key, h_Key;
@@ -331,6 +332,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		Damage[3].Load(L"Damage4.png");
 
 		Block.Load(L"Block.png");
+		Eblock[0].Load(L"EventBlock.jpg");
+		Eblock[1].Load(L"EventBlock_down.png");
 
 		GetClientRect(hWnd, &rect);
 
@@ -344,6 +347,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 		w_block = Block.GetWidth();
 		h_block = Block.GetHeight();
+
+		w_eblock = Eblock[0].GetWidth();
+		h_eblock = Eblock[0].GetHeight();
 
 		w_heart = Heart.GetWidth();
 		h_heart = Heart.GetHeight();
@@ -408,9 +414,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		}
 
 		hBitmap = CreateCompatibleBitmap(hdc, rect.right, rect.bottom);
-
 		mem1dc = CreateCompatibleDC(hdc);
-
 		SelectObject(mem1dc, hBitmap);
 
 		BackGround.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0 + CharX, bh - 1600 + CharY, 2560, 1600);
@@ -427,6 +431,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 		Block.Draw(mem1dc, Block_localX - CharX, Block_local[23].y - CharY, Block_local[23].width, 60, 0, 0, w_block, h_block);
 
+		hBitmap2 = CreateCompatibleBitmap(mem1dc, rect.right, rect.bottom);
+		mem2dc = CreateCompatibleDC(mem1dc);
+		SelectObject(mem2dc, hBitmap2);
+
+		Eblock[0].Draw(mem2dc, 600 - CharX, 660 - CharY, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
+
+		SelectObject(mem1dc, hBitmap);
+
+		if (GetPixel(mem2dc, x + 40, y + 40) != RGB(254, 0, 0)) {
+			Eblock[0].Draw(mem1dc, 600 - CharX, 660 - CharY, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
+		}
+
+		else if (GetPixel(mem2dc, x + 40, y + 40) == RGB(254, 0, 0)) {
+			Eblock[1].Draw(mem1dc, 600 - CharX, 660 - CharY, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
+		}
+		
 		// 블록 이동 코드 (현재 사용 x)
 		if (MoveBlock % 2 == 0) {
 			if (Block_localX - CharX >= 0) {
@@ -763,6 +783,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			}
 		}
 
+		// 중력 처리 하려고 했던 부분
 		if (jump == 0 && GetPixel(mem1dc, x, y + 70) != RGB(37, 176, 77) && y != 620) {
 			OnBlock = 0;
 		}
@@ -815,6 +836,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 		DeleteObject(hBitmap);
 		DeleteDC(mem1dc);
+		DeleteObject(hBitmap2);
+		DeleteDC(mem2dc);
 		EndPaint(hWnd, &ps);
 
 		printf("(%d, %d), block : %d\n", x, y, OnBlock);
