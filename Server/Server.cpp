@@ -1,4 +1,4 @@
-#include "global.h"
+ï»¿#include "global.h"
 #include "Protocol.h"
 
 int cnt = 0;
@@ -25,20 +25,70 @@ struct PlayerInfo {
 };
 PlayerInfo players[MAX_PLAYER];
 
+void SendMapFile()
+{
+	
+}
+
 DWORD WINAPI Recv_Thread(LPVOID arg)
 {
 	int retval;
 	SOCKET client_sock = (SOCKET)arg;
 	char buf[BUFSIZE];
 	PACKET keyEvent;
+
+	struct sockaddr_in clientaddr;
+	char addr[INET_ADDRSTRLEN];
+	int addrlen;
+
 	EnterCriticalSection(&cs);
 	int mycode = ClientNum;
 	LeaveCriticalSection(&cs);
 
+	addrlen = sizeof(clientaddr);
+	getpeername(client_sock, (struct sockaddr*)&clientaddr, &addrlen);
+	inet_ntop(AF_INET, &clientaddr.sin_addr, addr, sizeof(addr));
+
+	FILE* ff;
+	ff = fopen("mappos.txt", "rb");
+	if (!ff) {
+		err_display("fopen()");
+		exit(1);
+	}
+	else
+		fseek(ff, 0, SEEK_END);
+
+	long long f_size;
+	f_size = ftell(ff);
+
+	retval = send(client_sock, (char*)&f_size, sizeof(f_size), 0);
+	if (retval == SOCKET_ERROR) {
+		err_display("send()");
+	}
+
+	fseek(ff, 0, SEEK_SET);
+	if (ff == NULL)
+		printf("File not exist");
+	else {
+		memset(buf, 0, BUFSIZE);
+
+		while (fread(buf, sizeof(char), BUFSIZE, ff) > 0) {
+			retval = send(client_sock, buf, sizeof(buf), 0);
+			if (retval == SOCKET_ERROR) {
+				printf("Send Failed\n");
+				exit(1);
+			}
+			memset(buf, 0, BUFSIZE);
+		}
+		fclose(ff);
+		printf("File - %s - Send complete\n", "mappos.txt");
+	}
+	SendMapFile();
+
 	while (1) {
 		WaitForSingleObject(gameStartEvent, INFINITE);
 
-		// Å°ÀÔ·Â Recv
+		// í‚¤ì…ë ¥ Recv
 		retval = recv(client_sock, (char*)buf, sizeof(PACKET), MSG_WAITALL);
 		if (retval == SOCKET_ERROR) return 0;
 		else if (retval == 0) {
@@ -46,7 +96,7 @@ DWORD WINAPI Recv_Thread(LPVOID arg)
 			break;
 		}
 
-		// Å° ÀÔ·Â Ã³¸®
+		// í‚¤ ì…ë ¥ ì²˜ë¦¬
 
 
 
@@ -66,7 +116,7 @@ DWORD WINAPI Collsion_Send_Thread(LPVOID arg)
 	while (1) {
 		while (ClientNum != 3) Sleep(3000);
 
-		// Ä³¸¯ÅÍ ÄÚµå ¼³Á¤
+		// ìºë¦­í„° ì½”ë“œ ì„¤ì •
 
 		// Send Init Data
 
@@ -81,11 +131,11 @@ DWORD WINAPI Collsion_Send_Thread(LPVOID arg)
 		}
 		ResetEvent(gameStartEvent);
 
-		//Àç½ÃÀÛ ¿©ºÎ ¼Û½Å
+		//ì¬ì‹œì‘ ì—¬ë¶€ ì†¡ì‹ 
 		retval = send(client_sock, (char*)buf, sizeof(BUFSIZE), 0);
 		if (retval == SOCKET_ERROR) break;
 
-		//Àç½ÃÀÛ ¿©ºÎ ¼ö½Å
+		//ì¬ì‹œì‘ ì—¬ë¶€ ìˆ˜ì‹ 
 		retval = recv(client_sock, (char*)restart, sizeof(restart), MSG_WAITALL);
 		if (retval == SOCKET_ERROR) break;
 
