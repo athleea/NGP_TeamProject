@@ -138,6 +138,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int Key_Image = 1;
 	static int Heart_Click = 0;
 	static int MapNum = 0;
+	static int Switch = 0;
 
 	static int Portal_X = 800;		// Portal 위치 수정 필요
 	static int Portal_Y = -120;
@@ -440,31 +441,35 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		SelectObject(mem1dc, hBitmap);
 
 		if (GetPixel(mem2dc, x + 40, y + 40) != RGB(254, 0, 0)) {
+			Switch = 0;
 			Eblock[0].Draw(mem1dc, 600 - CharX, 660 - CharY, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
 		}
 
 		else if (GetPixel(mem2dc, x + 40, y + 40) == RGB(254, 0, 0)) {
+			Switch = 1;
 			Eblock[1].Draw(mem1dc, 600 - CharX, 660 - CharY, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
 		}
 		
 		// 블록 이동 코드 (현재 사용 x)
-		if (MoveBlock % 2 == 0) {
-			if (Block_localX - CharX >= 0) {
-				Block_localX -= 5;
+		if (Switch == 1) {
+			if (MoveBlock % 2 == 0) {
+				if (Block_localX - CharX >= 0) {
+					Block_localX -= 5;
+				}
+
+				else {
+					MoveBlock++;
+				}
 			}
 
 			else {
-				MoveBlock++;
-			}
-		}
-		
-		else {
-			if (Block_localX + CharX <= rect.right) {
-				Block_localX += 5;
-			}
+				if (Block_localX + CharX <= rect.right) {
+					Block_localX += 5;
+				}
 
-			else {
-				MoveBlock++;
+				else {
+					MoveBlock++;
+				}
 			}
 		}
 
