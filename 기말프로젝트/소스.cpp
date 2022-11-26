@@ -1,16 +1,111 @@
-#include <windows.h>
+#ifdef _DEBUG
+#pragma comment(linker, "/entry:WinMainCRTStartup /subsystem:console" )
+#endif
+
 #include <stdio.h>
 #include <tchar.h>
 #include <atlImage.h>
+#include <Windows.h>
 #pragma comment(lib, "winmm")
 #include <mmsystem.h>
 
-using namespace std;
+#include <WinSock2.h>
+#include <WS2tcpip.h>
+
+#pragma comment(lib, "ws2_32")
+
+#define SERVERIP "127.0.0.1"
+#define SERVERPORT 9000
+#define BUFSIZE 1024
+#define MAX_PLAYER 3
+
+#define CS_KEYDOWN_W				0
+#define CS_KEYDOWN_A				1
+#define CS_KEYDOWN_D				2
+#define CS_KEYDOWN_SPACE			3
+
+#define CS_KEYUP_A					4
+#define CS_KEYUP_D					5
+
+
+#define SC_GAMESTART				0
+#define SC_RESTART					1
+#define SC_PLAYER_INFO				2
+#define SC_INIT							3
+
 
 LPCTSTR lpszClass = L"Window Class Name";
 LPCTSTR lpszWindowName = L"windows program";
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
+DWORD WINAPI CommunicationThread(LPVOID);
+
+HANDLE hRecvEvent, hRenderEvent;
+char buf[BUFSIZE];
+
+struct BLOCK {
+	int x;
+	int y;
+	int width;
+};
+
+struct PlayerInfo {
+	bool keyPress_D, keyPress_A;
+	BYTE left, right;
+	COORD pos;
+	COORD charPos;
+	BYTE hp;
+	BYTE characterCode;
+	bool jump;
+	BYTE jumpCount;
+};
+CRITICAL_SECTION cs;
+PlayerInfo players[MAX_PLAYER];
+BYTE msg = 0;
+BYTE player_code;
+
+DWORD WINAPI CommunicationThread(LPVOID arg)
+{
+	WSAData wsa;
+	int retval;
+	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
+		return 1;
+	SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock == SOCKET_ERROR) return 0;
+
+	struct sockaddr_in serveraddr;
+	memset(&serveraddr, 0, sizeof(serveraddr));
+	serveraddr.sin_family = AF_INET;
+	inet_pton(AF_INET, SERVERIP, &serveraddr.sin_addr);
+	serveraddr.sin_port = htons(SERVERPORT);
+	retval = connect(sock, (struct sockaddr*)&serveraddr, sizeof(serveraddr));
+	if (retval == SOCKET_ERROR) return 1;
+
+	// 캐릭터 코드 및 초기값 받기
+	retval = recv(sock, (char*)&player_code, sizeof(player_code), MSG_WAITALL);
+	if (retval == SOCKET_ERROR) return  1;
+
+	retval = recv(sock, (char*)&players, sizeof(players), MSG_WAITALL);
+	if (retval == SOCKET_ERROR) {
+		return  1;
+	}
+
+	while (1) {
+		retval = send(sock, (char*)&msg, sizeof(msg), 0);
+		if (retval == SOCKET_ERROR) {
+			break;
+		}
+
+		retval = recv(sock, (char*)&players, sizeof(players), MSG_WAITALL);
+		if (retval == SOCKET_ERROR) {
+			break;
+		}
+	}
+
+	//Exit
+	closesocket(sock);
+	WSACleanup();
+}
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdParam, int nCmdShow)
 {
@@ -47,6 +142,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 		NULL
 	);
 
+	InitializeCriticalSection(&cs);
+	hRenderEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	hRecvEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
+
+	HANDLE hThread = CreateThread(NULL, 0, CommunicationThread, NULL, 0, NULL);
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
 
@@ -54,13 +154,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 		TranslateMessage(&Message);
 		DispatchMessage(&Message);
 	}
+	DeleteCriticalSection(&cs);
+	CloseHandle(hThread);
 }
 
-struct BLOCK {
-	int x;
-	int y;
-	int width;
-};
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -73,6 +170,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 	static HBITMAP hBitmap, hBitmap2;
 	static CImage BackGround, imgGround;
+
 	static CImage imgSprite1[4], imgSprite1_runR[4], imgSprite1_runL[4], imgSprite1_jump[4];
 	static CImage imgSprite2[4], imgSprite2_runR[4], imgSprite2_runL[4], imgSprite2_jump[4];
 	static CImage imgSprite3[4], imgSprite3_runR[4], imgSprite3_runL[4], imgSprite3_jump[4];
@@ -109,17 +207,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 	static int bw, bh, gw, gh;
 
-	static int x = 640;
-	static int y = 620;
-
-	static int CharX, CharY;
-
 	static int count = 0;
 
-	static int jump = 0;
 	static int jumpcount = 0;
 
-	static int left, right, last;
+	static int last;
 
 	static int CharNum = 1;
 	static int click = 0;
@@ -142,6 +234,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 	static int Portal_X = 800;		// Portal 위치 수정 필요
 	static int Portal_Y = -120;
+
+	static int player_code;
 
 	Block_local[0].x = 150;
 	Block_local[0].y = 600;
@@ -228,9 +322,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int KillMonster1;
 	static int KillMonster2;
 
-	static bool aDown = false;
-	static bool dDown = false;
-	static bool spaceDown = false;
+	static COORD pos = { 0,0 };
+	static COORD charPos = { 0,0 };
+	static BYTE left = 0;
+	static BYTE right = 0;
+	static bool jump = 0;
 
 	switch (iMsg) {
 	case WM_CREATE:
@@ -396,64 +492,66 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			h_monster[i] = Monster_R[i].GetHeight();
 		}
 
-		Monster1_X = Block_local[7].x - CharX + Block_local[7].width - 72;
-		Monster2_X = Block_local[15].x - CharX;
-
 		SetTimer(hWnd, 0, 50, NULL);
 
 		break;
 
 	case WM_PAINT:
+
+		pos = players[player_code].pos;
+		charPos = players[player_code].charPos;
+		left = players[player_code].left;
+		right = players[player_code].right;
+		jump = players[player_code].jump;
+		
 		hdc = BeginPaint(hWnd, &ps);
 
 		if (count != 4) {
 			count++;
-		}
-
+		} 
 		if (count == 4) {
 			count = 0;
 		}
+		
 
 		hBitmap = CreateCompatibleBitmap(hdc, rect.right, rect.bottom);
 		mem1dc = CreateCompatibleDC(hdc);
 		SelectObject(mem1dc, hBitmap);
 
-		BackGround.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0 + CharX, bh - 1600 + CharY, 2560, 1600);
-		imgGround.Draw(mem1dc, 0 - CharX, 130 - CharY, rect.right, rect.bottom, 0, 0, gw, gh);
-		imgGround.Draw(mem1dc, rect.right - CharX, 130 - CharY, rect.right, rect.bottom, 0, 0, gw, gh);
+		BackGround.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0 + charPos.X, bh - 1600 + charPos.Y, 2560, 1600);
+		imgGround.Draw(mem1dc, 0 - charPos.X, 130 - charPos.Y, rect.right, rect.bottom, 0, 0, gw, gh);
+		imgGround.Draw(mem1dc, rect.right - charPos.X, 130 - charPos.Y, rect.right, rect.bottom, 0, 0, gw, gh);
 
-		Guide.Draw(mem1dc, 750 - CharX, 590 - CharY, w_guide * 2 / 3, h_guide * 2 / 3, 0, 0, w_guide, h_guide);
-
-		Portal.Draw(mem1dc, Portal_X - CharX, Portal_Y - CharY - h_Portal * 1 / 4, w_Portal * 1 / 4, h_Portal * 1 / 4, 0, 0, w_Portal, h_Portal);
+		Guide.Draw(mem1dc, 750 - charPos.X, 590 - charPos.Y, w_guide * 2 / 3, h_guide * 2 / 3, 0, 0, w_guide, h_guide);
+		Portal.Draw(mem1dc, Portal_X - charPos.X, Portal_Y - charPos.Y - h_Portal * 1 / 4, w_Portal * 1 / 4, h_Portal * 1 / 4, 0, 0, w_Portal, h_Portal);
 
 		for (int i = 0; i < blockNum; i++) {
-			Block.Draw(mem1dc, Block_local[i].x - CharX, Block_local[i].y - CharY, Block_local[i].width, 60, 0, 0, w_block, h_block);	// 벽돌-
+			Block.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);	// 벽돌-
 		}
 
-		Block.Draw(mem1dc, Block_localX - CharX, Block_local[23].y - CharY, Block_local[23].width, 60, 0, 0, w_block, h_block);
-
+		Block.Draw(mem1dc, Block_localX - charPos.X, Block_local[23].y - charPos.Y, Block_local[23].width, 60, 0, 0, w_block, h_block);
 		hBitmap2 = CreateCompatibleBitmap(mem1dc, rect.right, rect.bottom);
 		mem2dc = CreateCompatibleDC(mem1dc);
 		SelectObject(mem2dc, hBitmap2);
 
-		Eblock[0].Draw(mem2dc, 600 - CharX, 660 - CharY, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
+		Eblock[0].Draw(mem2dc, 600 - charPos.X, 660 - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
 
 		SelectObject(mem1dc, hBitmap);
 
-		if (GetPixel(mem2dc, x + 40, y + 40) != RGB(254, 0, 0)) {
+		if (GetPixel(mem2dc, players[player_code].pos.X + 40, players[player_code].pos.Y + 40) != RGB(254, 0, 0)) {
 			Switch = 0;
-			Eblock[0].Draw(mem1dc, 600 - CharX, 660 - CharY, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
+			Eblock[0].Draw(mem1dc, 600 - charPos.X, 660 - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
 		}
 
-		else if (GetPixel(mem2dc, x + 40, y + 40) == RGB(254, 0, 0)) {
+		else if (GetPixel(mem2dc, players[player_code].pos.X + 40, players[player_code].pos.Y) == RGB(254, 0, 0)) {
 			Switch = 1;
-			Eblock[1].Draw(mem1dc, 600 - CharX, 660 - CharY, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
+			Eblock[1].Draw(mem1dc, 600 - charPos.X, 660 - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
 		}
 		
 		// 블록 이동 코드 (현재 사용 x)
 		if (Switch == 1) {
 			if (MoveBlock % 2 == 0) {
-				if (Block_localX - CharX >= 0) {
+				if (Block_localX - charPos.X >= 0) {
 					Block_localX -= 5;
 				}
 
@@ -463,7 +561,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			}
 
 			else {
-				if (Block_localX + CharX <= rect.right) {
+				if (Block_localX + charPos.X <= rect.right) {
 					Block_localX += 5;
 				}
 
@@ -476,13 +574,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		//	몬스터가 블록 왼쪽, 오른쪽 끝에 도달하면 방향 바꾸는 코드
 
 		if (KillMonster1 == 0) {
-			if (Monster1_X < Block_local[7].x - CharX || Monster1_X + w_monster[count] / 2 > Block_local[7].x - CharX + Block_local[7].width) {
-				if (Monster1_X < Block_local[7].x - CharX) {
-					Monster1_X = Block_local[7].x - CharX;
+			if (Monster1_X < Block_local[7].x || Monster1_X + w_monster[count] / 2 > Block_local[7].x - Block_local[7].width) {
+				if (Monster1_X < Block_local[7].x) {
+					Monster1_X = Block_local[7].x;
 				}
 
-				if (Monster1_X + w_monster[count] / 2 > Block_local[7].x - CharX + Block_local[7].width) {
-					Monster1_X = Block_local[7].x - CharX + Block_local[7].width - w_monster[count] / 2;
+				if (Monster1_X + w_monster[count] / 2 > Block_local[7].x + Block_local[7].width) {
+					Monster1_X = Block_local[7].x + Block_local[7].width - w_monster[count] / 2;
 				}
 
 				Monster1Turn++;
@@ -491,9 +589,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			//	몬스터가 오른쪽으로 이동할 때, 캐릭터가 오른쪽에서 부딪히면 하트 깎임... 등지고 있을 때도 깎이게 할까 고민 중
 
 			if (Monster1Turn % 2 == 0) {
-				Monster_L[count].Draw(mem1dc, Monster1_X, Block_local[7].y - CharY - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
+				Monster_L[count].Draw(mem1dc, Monster1_X, Block_local[7].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
 
-				if (x + w1_stand[count] / 2 > Monster1_X && x < Monster1_X && y + h1_stand[count] / 2 > Block_local[7].y - CharY - h_monster[count] / 2 && y + h1_stand[count] / 2 < Block_local[7].y - CharY + 60 && jump == 0) {
+				if (players[player_code].pos.X + w1_stand[count] / 2 > Monster1_X && players[player_code].pos.X < Monster1_X && players[player_code].pos.Y + h1_stand[count] / 2 > Block_local[7].y - charPos.Y - h_monster[count] / 2 && players[player_code].pos.Y + h1_stand[count] / 2 < Block_local[7].y - charPos.Y + 60 && jump == 0) {
 					hit++;
 					DamageNum = 1;
 					SetTimer(hWnd, 1, 700, NULL);
@@ -518,9 +616,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			}
 
 			if (Monster1Turn % 2 != 0) {
-				Monster_R[count].Draw(mem1dc, Monster1_X, Block_local[7].y - CharY - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
+				Monster_R[count].Draw(mem1dc, Monster1_X, Block_local[7].y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
 
-				if (x < Monster1_X + h_monster[count] / 2 && x + w1_stand[count] / 2 > Monster1_X && y + h1_stand[count] / 2 > Block_local[7].y - CharY - h_monster[count] / 2 && y + h1_stand[count] / 2 < Block_local[7].y - CharY + 60 && jump == 0) {
+				if (players[player_code].pos.X < Monster1_X + h_monster[count] / 2 && players[player_code].pos.X + w1_stand[count] / 2 > Monster1_X && players[player_code].pos.Y + h1_stand[count] / 2 > Block_local[7].y - charPos.Y - h_monster[count] / 2 && players[player_code].pos.Y + h1_stand[count] / 2 < Block_local[7].y - charPos.Y + 60 && jump == 0) {
 					hit++;
 					DamageNum = 1;
 					SetTimer(hWnd, 1, 700, NULL);
@@ -546,22 +644,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		//	위랑 똑같은 내용인데 위쪽 몬스터
 
 		if (KillMonster2 == 0) {
-			if (Monster2_X < Block_local[15].x - CharX || Monster2_X + w_monster[count] / 2 > Block_local[15].x - CharX + Block_local[15].width) {
-				if (Monster2_X < Block_local[15].x - CharX) {
-					Monster2_X = Block_local[15].x - CharX;
+			if (Monster2_X < Block_local[15].x - charPos.X || Monster2_X + w_monster[count] / 2 > Block_local[15].x - charPos.X + Block_local[15].width) {
+				if (Monster2_X < Block_local[15].x - charPos.X) {
+					Monster2_X = Block_local[15].x - charPos.X;
 				}
 
-				if (Monster2_X + w_monster[count] / 2 > Block_local[15].x - CharX + Block_local[15].width) {
-					Monster2_X = Block_local[15].x - CharX + Block_local[15].width - w_monster[count] / 2;
+				if (Monster2_X + w_monster[count] / 2 > Block_local[15].x - Block_local[15].width) {
+					Monster2_X = Block_local[15].x - Block_local[15].width - w_monster[count] / 2;
 				}
 
 				Monster2Turn++;
 			}
 
 			if (Monster2Turn % 2 != 0) {
-				Monster_L[count].Draw(mem1dc, Monster2_X, Block_local[15].y - CharY - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
+				Monster_L[count].Draw(mem1dc, Monster2_X, Block_local[15].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
 
-				if (x + w1_stand[count] / 2 > Monster2_X && x < Monster2_X && y + w1_stand[count] / 2 > Block_local[15].y - CharY - h_monster[count] / 2 && y + h1_stand[count] / 2 < Block_local[15].y - CharY + 60 && jump == 0) {
+				if (players[player_code].pos.X + w1_stand[count] / 2 > Monster2_X && players[player_code].pos.X < Monster2_X && players[player_code].pos.Y + w1_stand[count] / 2 > Block_local[15].y - charPos.Y - h_monster[count] / 2 && players[player_code].pos.Y + h1_stand[count] / 2 < Block_local[15].y - charPos.Y + 60 && jump == 0) {
 					hit++;
 					DamageNum = 1;
 					SetTimer(hWnd, 1, 700, NULL);
@@ -584,9 +682,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			}
 
 			if (Monster2Turn % 2 == 0) {
-				Monster_R[count].Draw(mem1dc, Monster2_X, Block_local[15].y - CharY - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
+				Monster_R[count].Draw(mem1dc, Monster2_X, Block_local[15].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
 
-				if (x < Monster2_X + h_monster[count] / 2 && x + w1_stand[count] / 2 > Monster2_X && y + h1_stand[count] / 2 > Block_local[15].y - CharY - h_monster[count] / 2 && y + h1_stand[count] / 2 < Block_local[15].y - CharY + 60 && jump == 0) {
+				if (players[player_code].pos.X < Monster2_X + h_monster[count] / 2 && players[player_code].pos.X + w1_stand[count] / 2 > Monster2_X && players[player_code].pos.Y + h1_stand[count] / 2 > Block_local[15].y - charPos.Y - h_monster[count] / 2 && players[player_code].pos.Y + h1_stand[count] / 2 < Block_local[15].y - charPos.Y + 60 && jump == 0) {
 					hit++;
 					DamageNum = 1;
 					SetTimer(hWnd, 1, 700, NULL);
@@ -610,70 +708,46 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		}
 
 		if (Key_Image == 1)
-			Key.Draw(mem1dc, Key_X - CharX, Key_Y - CharY, w_Key * 1 / 2, h_Key * 1 / 2, 0, 0, w_Key, h_Key);
+			Key.Draw(mem1dc, Key_X - charPos.X, Key_Y - charPos.Y, w_Key * 1 / 2, h_Key * 1 / 2, 0, 0, w_Key, h_Key);
 
 		if (Key_Image == 0) {
 			Key.Draw(mem1dc, 1170, 0, w_Key * 1 / 2, h_Key * 1 / 2, 0, 0, w_Key, h_Key);
 		}
 
-		if (x >= Key_X - CharX && x <= Key_X - CharX + w_Key * 1 / 2 && y >= Key_Y - CharY && y <= Key_Y - CharY + h_Key * 1 / 2) {
+		if (players[player_code].pos.X >= Key_X - charPos.X && players[player_code].pos.X <= Key_X - charPos.X + w_Key * 1 / 2 && players[player_code].pos.Y >= Key_Y - charPos.Y && players[player_code].pos.Y <= Key_Y + h_Key * 1 / 2) {
 			Key_Image = 0;
 		}
 
-		if (CharNum == 1) {
-			if (left == 0 && right == 0 && jump == 0) {
-				imgSprite1[count].Draw(mem1dc, x, y, w1_stand[count] / 2, h1_stand[count] / 2, 0, 0, w1_stand[count], h1_stand[count]);
-			}
+		Monster1_X = Block_local[7].x - charPos.X + Block_local[7].width - 72;
+		Monster2_X = Block_local[15].x - charPos.X;
 
-			if (left == 1 && jump == 0) {
-				imgSprite1_runL[count].Draw(mem1dc, x, y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
-			}
-
-			if (right == 1 && jump == 0) {
-				imgSprite1_runR[count].Draw(mem1dc, x, y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
-			}
-
-			if (jump == 1) {
-				imgSprite1_jump[count].Draw(mem1dc, x, y, w1_jump[count] / 2, h1_jump[count] / 2, 0, 0, w1_jump[count], h1_jump[count]);
-			}
+		// 내캐릭터 그리기
+		if (left == 0 && right == 0 && jump == 0)
+			imgSprite1[count].Draw(mem1dc, pos.X, pos.Y, w1_stand[count] / 2, h1_stand[count] / 2, 0, 0, w1_stand[count], h1_stand[count]);
+		else if (jump == 0) {
+			if (left == 1)
+				imgSprite1_runL[count].Draw(mem1dc, pos.X, pos.Y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
+			else if (right == 1)
+				imgSprite1_runR[count].Draw(mem1dc, pos.X, pos.Y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
 		}
 
-		if (CharNum == 2) {
-			if (left == 0 && right == 0 && jump == 0) {
-				imgSprite2[count].Draw(mem1dc, x, y, w2_stand[count] / 2, h2_stand[count] / 2, 0, 0, w2_stand[count], h2_stand[count]);
-			}
+		//다른 캐릭터들 그리기
+		for (int i = 0; i < MAX_PLAYER; ++i) {
+			if (i != player_code) {
+				if (players[i].left == 0 && players[i].right == 0 && players[i].jump == 0) {
+					imgSprite1[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, w1_stand[count] / 2, h1_stand[count] / 2, 0, 0, w1_stand[count], h1_stand[count]);
+				}
+				else if (players[i].jump == 0) {
+					if(players[i].left == 1)
+						imgSprite1_runL[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
+					else if(players[i].right == 1)
+						imgSprite1_runR[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
+				}
+				else {
 
-			if (left == 1 && jump == 0) {
-				imgSprite2_runL[count].Draw(mem1dc, x, y, w2_run[count] / 2, h2_run[count] / 2, 0, 0, w2_run[count], h2_run[count]);
-			}
-
-			if (right == 1 && jump == 0) {
-				imgSprite2_runR[count].Draw(mem1dc, x, y, w2_run[count] / 2, h2_run[count] / 2, 0, 0, w2_run[count], h2_run[count]);
-			}
-
-			if (jump == 1) {
-				imgSprite2_jump[count].Draw(mem1dc, x, y, w2_jump[count] / 2, h2_jump[count] / 2, 0, 0, w2_jump[count], h2_jump[count]);
-			}
-		}
-
-		if (CharNum == 3) {
-			if (left == 0 && right == 0 && jump == 0) {
-				imgSprite3[count].Draw(mem1dc, x, y, w3_stand[count] / 2, h3_stand[count] / 2, 0, 0, w3_stand[count], h3_stand[count]);
-			}
-
-			if (left == 1 && jump == 0) {
-				imgSprite3_runL[count].Draw(mem1dc, x, y, w3_run[count] / 2, h3_run[count] / 2, 0, 0, w3_run[count], h3_run[count]);
-			}
-
-			if (right == 1 && jump == 0) {
-				imgSprite3_runR[count].Draw(mem1dc, x, y, w3_run[count] / 2, h3_run[count] / 2, 0, 0, w3_run[count], h3_run[count]);
-			}
-
-			if (jump == 1) {
-				imgSprite3_jump[count].Draw(mem1dc, x, y, w3_jump[count] / 2, h3_jump[count] / 2, 0, 0, w3_jump[count], h3_jump[count]);
+				}
 			}
 		}
-
 		if (Image_Number == 0) {
 			Start.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 		}
@@ -688,11 +762,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 		if (DamageNum == 1) {
 			if (Monster1Turn % 2 == 0 && Monster2Turn % 2 != 0) {
-				Damage[count].Draw(mem1dc, x + 20, y, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
+				Damage[count].Draw(mem1dc, players[player_code].pos.X + 20, players[player_code].pos.Y, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
 			}
 
 			if (Monster1Turn % 2 != 0 && Monster2Turn % 2 == 0) {
-				Damage[count].Draw(mem1dc, x - 20, y, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
+				Damage[count].Draw(mem1dc, players[player_code].pos.X - 20, players[player_code].pos.Y, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
 			}
 
 			if (count == 3) {
@@ -701,42 +775,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		}
 
 		if (KillNum == 1) {
-			Damage[count].Draw(mem1dc, x, y + 70, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
+			Damage[count].Draw(mem1dc, players[player_code].pos.X, players[player_code].pos.Y + 70, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
 
 			if (count == 3) {
 				KillNum = 0;
 			}
 		}
 
-		if (true == aDown) {
-			if (x >= rect.left) {
-				x -= 5;
-			}
-
-			if (0 + CharX > 0) {
-				CharX -= 5;
-			}
-
-			left = 1;
-			right = 0;
-			last = 1;
-		}
-
-		if (true == dDown) {
-			x += 5;
-			if (x + w3_stand[count] + 5 >= rect.right) {
-				x -= 5;
-			}
-
-			if (CharX - w_stand[count] < bw - 2560 - 130) {
-				CharX += 5;
-			}
-
-			left = 0;
-			right = 1;
-			last = 2;
-		}
-
+		/*
 		if (jump == 1) {
 			jumpcount++;
 
@@ -797,6 +843,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			jump = 1;
 			jumpcount = 10;
 		}
+		*/
 
 		if (click != 0) {
 			if (heart == 3) {
@@ -837,6 +884,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			Guide2.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 		}
 
+		printf("%d : %d\r", pos.X, charPos.X);
+
 		BitBlt(hdc, 0, 0, rect.right, rect.bottom, mem1dc, 0, 0, SRCCOPY);
 
 		DeleteObject(hBitmap);
@@ -845,48 +894,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		DeleteDC(mem2dc);
 		EndPaint(hWnd, &ps);
 
-		printf("(%d, %d), block : %d\n", x, y, OnBlock);
-
-		break;
-
-	case WM_LBUTTONDOWN:
-		MouseX = LOWORD(lParam);
-		MouseY = HIWORD(lParam);
-
-		click++;
-
-		if (Heart_Click == 0 && heart == 0 && click != 0) {
-			Heart_Click++;
-		}
-
-		if (Heart_Click == 1) {
-			CharNum = 1;
-			click = 0;
-			heart = 3;
-			x = 640;
-			y = 620;
-			count = 0;
-
-			jump = 0;
-			jumpcount = 0;
-			CharX = 0, CharY = 0;
-		}
-
-		if (click == 1) {
-			PlaySound(L"OST.wav", NULL, SND_ASYNC | SND_LOOP);
-		}
-
-		if (Image_Number >= 0 && Image_Number < 4)
-			Image_Number++;
-
-		if (MouseX >= 750 - CharX && MouseX <= 750 - CharX + w_guide * 2 / 3 && MouseY >= 590 - CharY && MouseY <= 590 - CharY + h_guide * 2 / 3) {
-			Image_Number = 5;
-		}
-
-		else if (Image_Number == 5)
-			Image_Number = 4;
-
-		InvalidateRect(hWnd, NULL, FALSE);
 		break;
 
 	case WM_TIMER:
@@ -894,39 +901,37 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 		break;
 
+	case WM_KEYUP:
+		if (wParam == 'A' || wParam == 'a') {
+			msg = CS_KEYUP_A;
+		}
+
+
+		if (wParam == 'D' || wParam == 'd') {
+			msg = CS_KEYUP_D;
+		}
+
+		break;
 	case WM_KEYDOWN:
 		if (wParam == VK_SPACE) {
-			jump = 1;
+			msg = CS_KEYDOWN_SPACE;
 		}
 
-		if (wParam == 'M') {
-			if (MapNum == 1)
-				MapNum = 0;
-			else MapNum = 1;
+		if (wParam == 'A' || wParam == 'a') {
+			msg = CS_KEYDOWN_A;
 		}
 
-		if (wParam == 'A' || wParam == 'a')
-			aDown = true;
 
-		if (wParam == 'D' || wParam == 'd')
-			dDown = true;
-
-		break;
-
-	case WM_KEYUP:
-		if (wParam == 'A' || wParam == 'a')
-			aDown = false;
-		if (wParam == 'D' || wParam == 'd')
-			dDown = false;
-
-		left = 0;
-		right = 0;
-
-		break;
-
-	case WM_CHAR:
+		if (wParam == 'D' || wParam == 'd') {
+			msg = CS_KEYDOWN_D;
+		}
 		if (wParam == 'W' || wParam == 'w') {
-			if (x >= Portal_X - CharX && x <= Portal_X - CharX + w_Portal * 1 / 4) {
+			msg = CS_KEYDOWN_W;
+		}
+
+		/*
+		if (wParam == 'W' || wParam == 'w') {
+			if (x >= Portal_X - charPos.X && x <= Portal_X - charPos.X + w_Portal * 1 / 4) {
 				if (Key_Image == 0) {
 					Image_Number = 7;
 				}
@@ -938,35 +943,38 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				else Image_Number = 8;
 			}
 		}
+		*/
+		break;
 
-		if (wParam == '1') {
-			CharNum = 1;
+	case WM_LBUTTONDOWN:
+		MouseX = LOWORD(lParam);
+		MouseY = HIWORD(lParam);
 
-			InvalidateRect(hWnd, NULL, FALSE);
+		click++;
+
+		if (click == 1) {
+			//PlaySound(L"OST.wav", NULL, SND_ASYNC | SND_LOOP);
 		}
 
-		if (wParam == '2') {
-			CharNum = 2;
+		if (Image_Number >= 0 && Image_Number < 4)
+			Image_Number++;
 
-			InvalidateRect(hWnd, NULL, FALSE);
+		if (MouseX >= 750 - players[player_code].charPos.X && MouseX <= 750 - players[player_code].charPos.X + w_guide * 2 / 3 && MouseY >= 590 - players[player_code].charPos.Y && MouseY <= 590 - players[player_code].charPos.Y + h_guide * 2 / 3) {
+			Image_Number = 5;
 		}
 
-		if (wParam == '3') {
-			CharNum = 3;
+		else if (Image_Number == 5)
+			Image_Number = 4;
 
-			InvalidateRect(hWnd, NULL, FALSE);
-		}
-
+		InvalidateRect(hWnd, NULL, FALSE);
 		break;
 
 	case WM_DESTROY:
 		KillTimer(hWnd, 0);
-
 		PostQuitMessage(0);
 
 		break;
 
 	}
-	
 	return DefWindowProc(hWnd, iMsg, wParam, lParam);
 };

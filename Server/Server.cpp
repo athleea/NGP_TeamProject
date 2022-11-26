@@ -1,168 +1,240 @@
 ﻿#include "global.h"
 #include "Protocol.h"
 
-int cnt = 0;
-int ClientNum = 0;
+int clientCount = 0;
 FILE* fp;
-bool allClientReady;
-bool restart[MAX_PLAYER] = { 1,1,1 };
 
 HANDLE gameStartEvent;
 CRITICAL_SECTION cs;
+SOCKET sockManager[MAX_PLAYER];
 
-struct PACKET {
-	char type;
-};
+int ready = 0;
+bool gameover = false;
 
 struct PlayerInfo {
+	bool keyPress_D, keyPress_A;
+	BYTE left, right;
 	COORD pos;
-	int hp;
-	char characterCode;
+	COORD charPos;
+	BYTE hp;
+	BYTE characterCode;
 	bool jump;
-	short CharacterCollsion;
-	short MapCollision;
-	int MonsterCollsion;
+	BYTE jumpCount;
 };
+
 PlayerInfo players[MAX_PLAYER];
+
+void InitPlayer(int player_code);
+void InitPlayer(int player_code)
+{
+	if (player_code == 0)
+		players[player_code].pos = { 30, 620 };
+	else if (player_code == 1)
+		players[player_code].pos = { 230, 620 };
+	else if (player_code == 2)
+		players[player_code].pos = { 430, 620 };
+
+	players[player_code].charPos = { 0, 0 };
+	players[player_code].characterCode = player_code;
+	players[player_code].left = 0;
+	players[player_code].right = 0;
+	players[player_code].hp = 3;
+	players[player_code].keyPress_A = false;
+	players[player_code].keyPress_D = false;
+	players[player_code].jump = false;
+	players[player_code].jumpCount = 0;
+}
+
+BYTE RandomCharacter();
+BYTE RandomCharacter()
+{
+	BYTE temp{};
+	static bool characternum[3]{ false, false, false };
+	srand(time(NULL));
+
+	do {
+		temp = rand() % 3;
+	} while (characternum[temp]);
+	characternum[temp] = true;
+
+	return temp;
+}
+
+void ProcessPacket(BYTE msg, BYTE player_code)
+{
+	EnterCriticalSection(&cs);
+	switch (msg) {
+	case CS_KEYDOWN_W:
+		break;
+	case CS_KEYDOWN_A:
+		players[player_code].keyPress_A = true;
+		break;
+	case CS_KEYDOWN_D:
+		players[player_code].keyPress_D = true;
+		break;
+	case CS_KEYDOWN_SPACE:
+		players[player_code].jump = true;
+		break;
+	case CS_KEYUP_A:
+		players[player_code].keyPress_A = false;
+		break;
+	case CS_KEYUP_D:
+		players[player_code].keyPress_D = false;
+		break;
+	}
+
+	if (true == players[player_code].keyPress_A) {
+		if (players[player_code].pos.X > 10) {			// [임시] 맵 충돌체크
+			players[player_code].pos.X -= 3;		
+		}
+		if (players[player_code].charPos.X > 0) {
+			players[player_code].charPos.X -= 5;
+		}
+		players[player_code].left = 1;
+		players[player_code].right = 0;
+	}
+	else {
+		players[player_code].left = 0;
+	}
+
+
+	if (true == players[player_code].keyPress_D) {
+		if (players[player_code].pos.X < 1200) { // [임시] 맵 충돌체크
+			players[player_code].pos.X += 3;		
+		}
+		if (players[player_code].charPos.X < 1200) {
+			players[player_code].charPos.X += 5;
+		}
+		players[player_code].left = 0;
+		players[player_code].right = 1;
+	}
+	else {
+		players[player_code].right = 0;
+	}
+
+	LeaveCriticalSection(&cs);
+}
 
 void SendMapFile()
 {
-	
+
 }
 
-DWORD WINAPI Recv_Thread(LPVOID arg)
+
+DWORD WINAPI RecvThread(LPVOID arg)
 {
 	int retval;
 	SOCKET client_sock = (SOCKET)arg;
 	char buf[BUFSIZE];
-	PACKET keyEvent;
+	BYTE msg = 0;
 
 	struct sockaddr_in clientaddr;
 	char addr[INET_ADDRSTRLEN];
 	int addrlen;
 
-	EnterCriticalSection(&cs);
-	int mycode = ClientNum;
-	LeaveCriticalSection(&cs);
-
 	addrlen = sizeof(clientaddr);
 	getpeername(client_sock, (struct sockaddr*)&clientaddr, &addrlen);
 	inet_ntop(AF_INET, &clientaddr.sin_addr, addr, sizeof(addr));
 
-	FILE* ff;
-	ff = fopen("mappos.txt", "rb");
-	if (!ff) {
-		err_display("fopen()");
-		exit(1);
-	}
-	else
-		fseek(ff, 0, SEEK_END);
+	BYTE player_code = RandomCharacter();
 
-	long long f_size;
-	f_size = ftell(ff);
+	sockManager[player_code] = client_sock;
 
-	retval = send(client_sock, (char*)&f_size, sizeof(f_size), 0);
+	// 캐릭터 초기값 설정
+	InitPlayer(player_code);
+
+	retval = send(client_sock, (char*)&player_code, sizeof(player_code), 0);
 	if (retval == SOCKET_ERROR) {
-		err_display("send()");
+		clientCount--;
+		return 1;
 	}
 
-	fseek(ff, 0, SEEK_SET);
-	if (ff == NULL)
-		printf("File not exist");
-	else {
-		memset(buf, 0, BUFSIZE);
+	printf("%d : send_code\n", player_code);
 
-		while (fread(buf, sizeof(char), BUFSIZE, ff) > 0) {
-			retval = send(client_sock, buf, sizeof(buf), 0);
-			if (retval == SOCKET_ERROR) {
-				printf("Send Failed\n");
-				exit(1);
-			}
-			memset(buf, 0, BUFSIZE);
-		}
-		fclose(ff);
-		printf("File - %s - Send complete\n", "mappos.txt");
-	}
-	SendMapFile();
+	EnterCriticalSection(&cs);
+	ready++;
+	LeaveCriticalSection(&cs);
 
-	while (1) {
-		WaitForSingleObject(gameStartEvent, INFINITE);
+	
+	WaitForSingleObject(gameStartEvent, INFINITE);
+
+	//게임 시작
+	printf("%d : gamestart\n", player_code);
+
+	while (1) {  // 1 -> checkGameEnd()
 
 		// 키입력 Recv
-		retval = recv(client_sock, (char*)buf, sizeof(PACKET), MSG_WAITALL);
-		if (retval == SOCKET_ERROR) return 0;
-		else if (retval == 0) {
-			ResetEvent(gameStartEvent);
+		retval = recv(client_sock, (char*)&msg, sizeof(msg), MSG_WAITALL);
+		if (retval == SOCKET_ERROR) {
 			break;
 		}
+		else if (retval == 0) {
+			break;
+		}
+		
+		ProcessPacket(msg, player_code);
+	}
 
-		// 키 입력 처리
+	ResetEvent(gameStartEvent);
+	EnterCriticalSection(&cs);
+	clientCount--;
+	LeaveCriticalSection(&cs);
+	return 0;
+}
 
+DWORD WINAPI CollsionSendThread(LPVOID arg)
+{
+	printf("enter collsion\n");
+	char restart = 1;
+	int retval;
 
+	while (1) {
+		EnterCriticalSection(&cs);
+		if (ready > 2) {
+			LeaveCriticalSection(&cs);
+			break;
+		}
+		LeaveCriticalSection(&cs);
+	}
+
+	// 게임 시작
+	SetEvent(gameStartEvent);
+	printf("GameStart \n");
+	bool flag = false;
+
+	while (false == flag) { // CheckGameEnd()
+
+		EnterCriticalSection(&cs);
+		if (clientCount != 3) {
+			LeaveCriticalSection(&cs);
+			break;
+		}
+		LeaveCriticalSection(&cs);
+
+		for (int i = 0; i < MAX_PLAYER; i++)
+		{
+			EnterCriticalSection(&cs);
+			retval = send(sockManager[i], (char*)&players, sizeof(players), 0);
+			if (retval == SOCKET_ERROR) {
+				flag = true;
+				LeaveCriticalSection(&cs);
+				break;
+			}
+			LeaveCriticalSection(&cs);
+		}
+
+		Sleep(10);
 
 	}
+
+	ResetEvent(gameStartEvent);
 
 	return 0;
 }
 
-DWORD WINAPI Collsion_Send_Thread(LPVOID arg) 
-{
-
-	char restart = 1;
-	int retval;
-	char buf[BUFSIZE];
-	SOCKET client_sock = (SOCKET)arg;
-
-	while (1) {
-		while (ClientNum != 3) Sleep(3000);
-
-		// 캐릭터 코드 설정
-
-		// Send Init Data
 
 
-		SetEvent(gameStartEvent);
-		while (1) { // CheckGameEnd()
-
-			//collsion
-
-
-			//send
-		}
-		ResetEvent(gameStartEvent);
-
-		//재시작 여부 송신
-		retval = send(client_sock, (char*)buf, sizeof(BUFSIZE), 0);
-		if (retval == SOCKET_ERROR) break;
-
-		//재시작 여부 수신
-		retval = recv(client_sock, (char*)restart, sizeof(restart), MSG_WAITALL);
-		if (retval == SOCKET_ERROR) break;
-
-		if (restart == 0) break;
-	}
-
-	EnterCriticalSection(&cs);
-	ClientNum--;
-	LeaveCriticalSection(&cs);
-}
-
-int RandomCharacter() 
-{
-	int temp{};
-	static bool characternum[3]{ false, false, false }; 
-	srand(time(NULL));
-
-	do { 
-		temp = rand() % 3; 
-	} while (characternum[temp]);
-	characternum[temp] = true;
-
-	return temp + 1;
-}
-
-
-int main() 
+int main()
 {
 	int retval;
 
@@ -200,25 +272,31 @@ int main()
 			//err_display("accept()");
 			break;
 		}
-
-		if (ClientNum < 3) {
-			hThread = CreateThread(NULL, 0, Recv_Thread, (LPVOID)client_sock, 0, NULL);
+		EnterCriticalSection(&cs);
+		if (clientCount < 3) {
+			hThread = CreateThread(NULL, 0, RecvThread, (LPVOID)client_sock, 0, NULL);
 			if (hThread == NULL) { closesocket(client_sock); }
 			else { CloseHandle(hThread); }
 
-			hThread = CreateThread(NULL, 0, Collsion_Send_Thread, (LPVOID)client_sock, 0, NULL);
-			if (hThread == NULL) { closesocket(client_sock); }
-			else { CloseHandle(hThread); }
-
-			EnterCriticalSection(&cs);
-			ClientNum++;
-			LeaveCriticalSection(&cs);
+			clientCount++;
 		}
-		else {
+		else if(clientCount > 3) {
 			closesocket(client_sock);
 		}
+		
+		if (clientCount == 3) {
+			hThread = CreateThread(NULL, 0, CollsionSendThread, NULL, 0, NULL);
+			if (hThread == NULL) { CloseHandle(hThread); }
+		}
+		LeaveCriticalSection(&cs);
+
+		printf("Access : %d client\n", clientCount);
 	}
+
 	closesocket(listen_sock);
+
+	CloseHandle(gameStartEvent);
+
 	DeleteCriticalSection(&cs);
 	WSACleanup();
 
