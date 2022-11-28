@@ -140,6 +140,44 @@ DWORD WINAPI RecvThread(LPVOID arg)
 
 	sockManager[player_code] = client_sock;
 
+	//맵 위치 파일전송
+	FILE* ff;
+	ff = fopen("mappos.txt", "rb");
+	if (!ff) {
+		err_display("fopen()");
+		exit(1);
+	}
+	else
+		fseek(ff, 0, SEEK_END);
+
+	long long f_size;
+	f_size = ftell(ff);
+
+	// 데이터 보내기(고정 길이)
+
+	retval = send(client_sock, (char*)&f_size, sizeof(f_size), 0);
+	if (retval == SOCKET_ERROR) {
+		err_display("send()");
+	}
+
+	fseek(ff, 0, SEEK_SET);
+	if (ff == NULL)
+		printf("File not exist");
+	else {
+		memset(buf, 0, BUFSIZE);
+
+		while (fread(buf, sizeof(char), BUFSIZE, ff) > 0) {
+			retval = send(client_sock, buf, sizeof(buf), 0);
+			if (retval == SOCKET_ERROR) {
+				printf("Send Failed\n");
+				exit(1);
+			}
+			memset(buf, 0, BUFSIZE);
+		}
+		fclose(ff);
+		printf("File - %s - Send complete\n", "mappos.txt");
+	}
+
 	// 캐릭터 초기값 설정
 	InitPlayer(player_code);
 
@@ -156,7 +194,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	LeaveCriticalSection(&cs);
 
 	
-	WaitForSingleObject(gameStartEvent, INFINITE);
+	//WaitForSingleObject(gameStartEvent, INFINITE);
 
 	//게임 시작
 	printf("%d : gamestart\n", player_code);
