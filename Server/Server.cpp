@@ -14,6 +14,8 @@ SOCKET sockManager[MAX_PLAYER];
 
 int ready = 0;
 bool gameover = false;
+int Monster_X[3] = { 0 };
+int MonsterTurn[3] = { 0 };
 
 class BLOCK {
 public:
@@ -32,6 +34,8 @@ public:
 		width = w;
 	}
 };
+
+BLOCK Block_local[28];
 
 struct PlayerInfo {
 	bool keyPress_D, keyPress_A;
@@ -197,6 +201,30 @@ void ReadFile(SOCKET client_sock)
 	}*/
 }
 
+void MonsterPos(int num, BYTE player_code)
+{
+	if (num == 0) {
+		if (Monster_X[num] < Block_local[2].x - players[player_code].charPos.X || Monster_X[num] + 72 > Block_local[2].x - players[player_code].charPos.X + Block_local[2].width) {
+			if (Monster_X[num] < Block_local[2].x - players[player_code].charPos.X) {
+				Monster_X[num] = Block_local[2].x - players[player_code].charPos.X;
+			}
+
+			if (Monster_X[num] + 72 > Block_local[2].x - players[player_code].charPos.X + Block_local[2].width) {
+				Monster_X[num] = Block_local[2].x - players[player_code].charPos.X + Block_local[2].width - 72;
+			}
+
+			MonsterTurn[num]++;
+		}
+
+		if (MonsterTurn[num] % 2 == 0) {
+			Monster_X[num] -= 5;
+		}
+
+		else {
+			Monster_X[num] += 5;
+		}
+	}
+}
 
 DWORD WINAPI RecvThread(LPVOID arg)
 {
@@ -219,7 +247,17 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	//맵 위치 파일전송
 	ReadFile(client_sock);
 	//WaitForSingleObject(hFileEvent, INFINITE);
-	
+
+	retval = recv(client_sock, (char*)&Block_local[2].x, sizeof(Block_local[2].x), MSG_WAITALL);
+	if (retval == SOCKET_ERROR) {
+		return 1;
+	}
+
+	retval = recv(client_sock, (char*)&Block_local[2].width, sizeof(Block_local[2].width), MSG_WAITALL);
+	if (retval == SOCKET_ERROR) {
+		return 1;
+	}
+
 	// 캐릭터 초기값 설정
 	InitPlayer(player_code);
 
@@ -231,20 +269,35 @@ DWORD WINAPI RecvThread(LPVOID arg)
 
 	printf("%d : send_code\n", player_code);
 
+	Monster_X[0] = Block_local[2].x - players[0].charPos.X + Block_local[2].width - 72;
+
 	EnterCriticalSection(&cs);
 	ready++;
 	LeaveCriticalSection(&cs);
 
 	
-	WaitForSingleObject(gameStartEvent, INFINITE);
+	/*WaitForSingleObject(gameStartEvent, INFINITE);*/
 
 	//게임 시작
 	printf("%d : gamestart\n", player_code);
 
 	while (1) {  // 1 -> checkGameEnd()
+		/*MonsterPos(0, player_code);
+
+		retval = send(client_sock, (char*)&Monster_X[0], sizeof(Monster_X[0]), 0);
+		if (retval == SOCKET_ERROR) {
+			break;
+		}
+
+		printf("Monster_X[0]: %d\n", Monster_X[0]);
+
+		retval = send(client_sock, (char*)&MonsterTurn[0], sizeof(MonsterTurn[0]), 0);
+		if (retval == SOCKET_ERROR) {
+			break;
+		}*/
 
 		// 키입력 Recv
-		retval = recv(client_sock, (char*)&msg, sizeof(msg), MSG_WAITALL);
+		retval = recv(client_sock, (char*)&msg, sizeof(msg), 0);
 		if (retval == SOCKET_ERROR) {
 			break;
 		}
@@ -262,7 +315,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	return 0;
 }
 
-DWORD WINAPI CollsionSendThread(LPVOID arg)
+DWORD WINAPI CollisionSendThread(LPVOID arg)
 {
 	printf("enter collsion\n");
 	char restart = 1;
@@ -283,7 +336,6 @@ DWORD WINAPI CollsionSendThread(LPVOID arg)
 	bool flag = false;
 
 	while (false == flag) { // CheckGameEnd()
-
 		EnterCriticalSection(&cs);
 		if (clientCount != 3) {
 			LeaveCriticalSection(&cs);
@@ -311,8 +363,6 @@ DWORD WINAPI CollsionSendThread(LPVOID arg)
 
 	return 0;
 }
-
-
 
 int main()
 {
@@ -366,7 +416,7 @@ int main()
 		}
 		
 		if (clientCount == 3) {
-			hThread = CreateThread(NULL, 0, CollsionSendThread, NULL, 0, NULL);
+			hThread = CreateThread(NULL, 0, CollisionSendThread, NULL, 0, NULL);
 			if (hThread == NULL) { CloseHandle(hThread); }
 		}
 		LeaveCriticalSection(&cs);

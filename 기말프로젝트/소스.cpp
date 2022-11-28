@@ -60,6 +60,7 @@ CRITICAL_SECTION cs;
 PlayerInfo players[MAX_PLAYER];
 BYTE msg = 0;
 BYTE player_code;
+static COORD charPos = { 0,0 };
 
 void ReadFile(SOCKET sock)
 {
@@ -107,6 +108,9 @@ void ReadFile(SOCKET sock)
 	}*/
 }
 
+static int Monster_X[3] = { 0 };
+static int MonsterTurn[3] = { 0 };
+
 DWORD WINAPI CommunicationThread(LPVOID arg)
 {
 	WSAData wsa;
@@ -126,18 +130,32 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 
 	//맵 위치 파일전송
 	ReadFile(sock);	
-	
+
+	retval = send(sock, (char*)&Block_local[2].x, sizeof(Block_local[2].x), 0);	// 몬스터 초기 좌표 전송, Block_local[2].x 부분 변경 필요
+	if (retval == SOCKET_ERROR) {
+		return 1;
+	}
+
+	retval = send(sock, (char*)&Block_local[2].width, sizeof(Block_local[2].width), 0);
+	if (retval == SOCKET_ERROR) {
+		return 1;
+	}
 
 	// 캐릭터 코드 및 초기값 받기
 	retval = recv(sock, (char*)&player_code, sizeof(player_code), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) return  1;
 
-	retval = recv(sock, (char*)&players, sizeof(players), MSG_WAITALL);
-	if (retval == SOCKET_ERROR) {
-		return  1;
-	}
-
 	while (1) {
+		/*retval = recv(sock, (char*)&Monster_X[0], sizeof(Monster_X[0]), MSG_WAITALL);
+		if (retval == SOCKET_ERROR) {
+			break;
+		}
+
+		retval = recv(sock, (char*)&MonsterTurn[0], sizeof(MonsterTurn[0]), MSG_WAITALL);
+		if (retval == SOCKET_ERROR) {
+			break;
+		}*/
+
 		retval = send(sock, (char*)&msg, sizeof(msg), 0);
 		if (retval == SOCKET_ERROR) {
 			break;
@@ -368,7 +386,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int KillMonster2;
 
 	static COORD pos = { 0,0 };
-	static COORD charPos = { 0,0 };
 	static BYTE left = 0;
 	static BYTE right = 0;
 	static bool jump = 0;
@@ -546,7 +563,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_PAINT:
-
 		pos = players[player_code].pos;
 		charPos = players[player_code].charPos;
 		left = players[player_code].left;
@@ -561,7 +577,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		if (count == 4) {
 			count = 0;
 		}
-		
 
 		hBitmap = CreateCompatibleBitmap(hdc, rect.right, rect.bottom);
 		mem1dc = CreateCompatibleDC(hdc);
@@ -622,6 +637,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		}
 
 		//	몬스터가 블록 왼쪽, 오른쪽 끝에 도달하면 방향 바꾸는 코드
+
+		/*if (KillMonster1 == 0) {
+			if (MonsterTurn[0] % 2 == 0) {
+				Monster_L[count].Draw(mem1dc, Monster_X[0], Block_local[2].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
+			}
+
+			if (MonsterTurn[0] % 2 != 0) {
+				Monster_R[count].Draw(mem1dc, Monster_X[0], Block_local[2].y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
+			}
+		}*/
 		
 		if (KillMonster1 == 0) {
 			if (Monster1_X < Block_local[2].x - charPos.X || Monster1_X + w_monster[count] / 2 > Block_local[2].x - charPos.X + Block_local[2].width) {
