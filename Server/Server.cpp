@@ -175,12 +175,18 @@ void ReadFile(SOCKET client_sock)
 			}
 			memset(buf, 0, BUFSIZE);
 		}
+		retval = send(client_sock, buf, sizeof(buf), 0);
+		printf("%d", retval);
+		if (retval == SOCKET_ERROR) {
+			printf("Send Failed\n");
+			exit(1);
+		}
 		fclose(ff);
 		printf("File - %s - Send complete\n", "mappos.txt");
 	}
 
 	//맵 파일 읽어서 변수에 위치 저장
-	vector<BLOCK> v{30};
+	vector<BLOCK> v{28};
 
 	ifstream in{ "mappos.txt", ios::binary };
 	for (BLOCK& b : v) {
@@ -212,8 +218,8 @@ DWORD WINAPI RecvThread(LPVOID arg)
 
 	//맵 위치 파일전송
 	ReadFile(client_sock);
-
 	//WaitForSingleObject(hFileEvent, INFINITE);
+	
 	// 캐릭터 초기값 설정
 	InitPlayer(player_code);
 

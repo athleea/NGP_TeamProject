@@ -9,10 +9,14 @@
 #include <Windows.h>
 #pragma comment(lib, "winmm")
 #include <mmsystem.h>
+#include <fstream>
+#include <vector>
+#include <iostream>
 #include "global.h"
 #include "Protocol.h"
 
 #define SERVERIP "127.0.0.1"
+using namespace std;
 
 LPCTSTR lpszClass = L"Window Class Name";
 LPCTSTR lpszWindowName = L"windows program";
@@ -20,13 +24,31 @@ LPCTSTR lpszWindowName = L"windows program";
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
 DWORD WINAPI CommunicationThread(LPVOID);
 
-HANDLE hRecvEvent, hRenderEvent;
+HANDLE hRecvEvent, hRenderEvent, hFileEvent;
 char buf[BUFSIZE];
 
 struct BLOCK {
 	int x;
 	int y;
 	int width;
+};
+
+class Cblock {
+public:
+	int x;
+	int y;
+	int width;
+
+	void read(ifstream& in) {
+		int a, b, w;
+		in >> a;
+		in >> b;
+		in >> w;
+
+		x = a;
+		y = b;
+		width = w;
+	}
 };
 
 struct PlayerInfo {
@@ -43,6 +65,53 @@ CRITICAL_SECTION cs;
 PlayerInfo players[MAX_PLAYER];
 BYTE msg = 0;
 BYTE player_code;
+
+void ReadFile(SOCKET sock)
+{
+	int ret;
+
+	long long f_size;
+	ret = recv(sock, (char*)&f_size, sizeof(f_size), 0);
+	if (ret == SOCKET_ERROR) {
+		err_display("recv()");
+	}
+
+	FILE* ff;
+	ff = fopen("mappos.txt", "wb");
+	if (NULL == ff) {
+		exit(1);
+	}
+	else {
+		memset(buf, 0, BUFSIZE);
+
+		int sum{};
+		while (true) {
+			ret = recv(sock, buf, BUFSIZE, 0);
+			sum += ret;
+
+			fwrite(buf, sizeof(char), ret, ff);
+			memset(buf, 0, BUFSIZE);
+
+			if (f_size <= sum) {
+				SetEvent(hFileEvent);
+				break;
+			}
+		}
+	}
+	fclose(ff);
+	putchar('\n');
+	printf("File - %s - download complete\n", "mappos.txt");
+
+	vector<Cblock> v{ 28 };
+
+	ifstream in{ "mappos.txt", ios::binary };
+	for (Cblock& b : v) {
+		b.read(in);
+	}
+	for (Cblock& b : v) {
+		cout << b.x  << " " << b.y << " " << b.width << endl;
+	}
+}
 
 DWORD WINAPI CommunicationThread(LPVOID arg)
 {
@@ -62,36 +131,7 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	if (retval == SOCKET_ERROR) return 1;
 
 	//맵 위치 파일전송
-	long long f_size;
-	retval = recv(sock, (char*)&f_size, sizeof(f_size), 0);
-	if (retval == SOCKET_ERROR) {
-		err_display("recv()");
-	}
-
-	FILE* ff;
-	ff = fopen("mappos.txt", "wb");
-	if (NULL == ff) {
-		exit(1);
-	}
-	else {
-		memset(buf, 0, BUFSIZE);
-
-		//가변 
-		while (true) {
-			retval = recv(sock, buf, BUFSIZE, 0);
-			if (retval == 0) {
-				break;
-			}
-
-			//데이터 쓰기
-			fwrite(buf, sizeof(char), retval, ff);
-			printf("%s", buf);
-			memset(buf, 0, BUFSIZE);
-		}
-	}
-	fclose(ff);
-	putchar('\n');
-	printf("File - %s - download complete\n", "mappos.txt");
+	ReadFile(sock);	
 	
 
 	// 캐릭터 코드 및 초기값 받기
@@ -158,6 +198,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	InitializeCriticalSection(&cs);
 	hRenderEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 	hRecvEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
+	hFileEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
 	HANDLE hThread = CreateThread(NULL, 0, CommunicationThread, NULL, 0, NULL);
 	ShowWindow(hWnd, nCmdShow);
@@ -169,6 +210,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	}
 	DeleteCriticalSection(&cs);
 	CloseHandle(hThread);
+	CloseHandle(hFileEvent);
 }
 
 
@@ -341,6 +383,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static BYTE right = 0;
 	static bool jump = 0;
 
+	WaitForSingleObject(hFileEvent, INFINITE);
 	switch (iMsg) {
 	case WM_CREATE:
 		PlaySound(L"start.wav", NULL, SND_ASYNC);
