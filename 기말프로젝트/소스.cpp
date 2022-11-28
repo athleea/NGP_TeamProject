@@ -538,6 +538,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			h_monster[i] = Monster_R[i].GetHeight();
 		}
 
+		Monster1_X = Block_local[2].x - charPos.X + Block_local[2].width - 72;
+		Monster2_X = Block_local[15].x - charPos.X;
+
 		SetTimer(hWnd, 0, 50, NULL);
 
 		break;
@@ -621,13 +624,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		//	몬스터가 블록 왼쪽, 오른쪽 끝에 도달하면 방향 바꾸는 코드
 		
 		if (KillMonster1 == 0) {
-			if (Monster1_X < Block_local[7].x || Monster1_X + w_monster[count] / 2 > Block_local[7].x - Block_local[7].width) {
-				if (Monster1_X < Block_local[7].x) {
-					Monster1_X = Block_local[7].x;
+			if (Monster1_X < Block_local[2].x - charPos.X || Monster1_X + w_monster[count] / 2 > Block_local[2].x - charPos.X + Block_local[2].width) {
+				if (Monster1_X < Block_local[2].x - charPos.X) {
+					Monster1_X = Block_local[2].x - charPos.X;
 				}
 
-				if (Monster1_X + w_monster[count] / 2 > Block_local[7].x + Block_local[7].width) {
-					Monster1_X = Block_local[7].x + Block_local[7].width - w_monster[count] / 2;
+				if (Monster1_X + w_monster[count] / 2 > Block_local[2].x - charPos.X + Block_local[2].width) {
+					Monster1_X = Block_local[2].x - charPos.X + Block_local[2].width - w_monster[count] / 2;
 				}
 
 				Monster1Turn++;
@@ -636,9 +639,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			//	몬스터가 오른쪽으로 이동할 때, 캐릭터가 오른쪽에서 부딪히면 하트 깎임... 등지고 있을 때도 깎이게 할까 고민 중
 
 			if (Monster1Turn % 2 == 0) {
-				Monster_L[count].Draw(mem1dc, Monster1_X, Block_local[7].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
+				Monster_L[count].Draw(mem1dc, Monster1_X, Block_local[2].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
 
-				if (players[player_code].pos.X + w1_stand[count] / 2 > Monster1_X && players[player_code].pos.X < Monster1_X && players[player_code].pos.Y + h1_stand[count] / 2 > Block_local[7].y - charPos.Y - h_monster[count] / 2 && players[player_code].pos.Y + h1_stand[count] / 2 < Block_local[7].y - charPos.Y + 60 && jump == 0) {
+				if (players[player_code].pos.X + w1_stand[count] / 2 > Monster1_X && players[player_code].pos.X < Monster1_X && players[player_code].pos.Y + h1_stand[count] / 2 > Block_local[2].y - charPos.Y - h_monster[count] / 2 && players[player_code].pos.Y + h1_stand[count] / 2 < Block_local[2].y - charPos.Y + 60 && jump == 0) {
 					hit++;
 					DamageNum = 1;
 					SetTimer(hWnd, 1, 700, NULL);
@@ -663,9 +666,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			}
 
 			if (Monster1Turn % 2 != 0) {
-				Monster_R[count].Draw(mem1dc, Monster1_X, Block_local[7].y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
+				Monster_R[count].Draw(mem1dc, Monster1_X, Block_local[2].y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
 
-				if (players[player_code].pos.X < Monster1_X + h_monster[count] / 2 && players[player_code].pos.X + w1_stand[count] / 2 > Monster1_X && players[player_code].pos.Y + h1_stand[count] / 2 > Block_local[7].y - charPos.Y - h_monster[count] / 2 && players[player_code].pos.Y + h1_stand[count] / 2 < Block_local[7].y - charPos.Y + 60 && jump == 0) {
+				if (players[player_code].pos.X < Monster1_X + h_monster[count] / 2 && players[player_code].pos.X + w1_stand[count] / 2 > Monster1_X && players[player_code].pos.Y + h1_stand[count] / 2 > Block_local[2].y - charPos.Y - h_monster[count] / 2 && players[player_code].pos.Y + h1_stand[count] / 2 < Block_local[2].y - charPos.Y + 60 && jump == 0) {
 					hit++;
 					DamageNum = 1;
 					SetTimer(hWnd, 1, 700, NULL);
@@ -764,10 +767,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		if (players[player_code].pos.X >= Key_X - charPos.X && players[player_code].pos.X <= Key_X - charPos.X + w_Key * 1 / 2 && players[player_code].pos.Y >= Key_Y - charPos.Y && players[player_code].pos.Y <= Key_Y + h_Key * 1 / 2) {
 			Key_Image = 0;
 		}
-
-		//monster1_x 값 수정
-		Monster1_X = Block_local[7].x - charPos.X + Block_local[7].width;
-		Monster2_X = Block_local[15].x - charPos.X;
 
 		// 내캐릭터 그리기
 		if (left == 0 && right == 0 && jump == 0)
