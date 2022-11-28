@@ -1,38 +1,18 @@
+#define _CRT_SECURE_NO_WARNINGS // 구형 C 함수 사용 시 경고 끄기
+#define _WINSOCK_DEPRECATED_NO_WARNINGS // 구형 소켓 API 사용 시 경고 끄기
+
 #ifdef _DEBUG
 #pragma comment(linker, "/entry:WinMainCRTStartup /subsystem:console" )
 #endif
 
-#include <stdio.h>
-#include <tchar.h>
 #include <atlImage.h>
 #include <Windows.h>
 #pragma comment(lib, "winmm")
 #include <mmsystem.h>
-
-#include <WinSock2.h>
-#include <WS2tcpip.h>
-
-#pragma comment(lib, "ws2_32")
+#include "global.h"
+#include "Protocol.h"
 
 #define SERVERIP "127.0.0.1"
-#define SERVERPORT 9000
-#define BUFSIZE 1024
-#define MAX_PLAYER 3
-
-#define CS_KEYDOWN_W				0
-#define CS_KEYDOWN_A				1
-#define CS_KEYDOWN_D				2
-#define CS_KEYDOWN_SPACE			3
-
-#define CS_KEYUP_A					4
-#define CS_KEYUP_D					5
-
-
-#define SC_GAMESTART				0
-#define SC_RESTART					1
-#define SC_PLAYER_INFO				2
-#define SC_INIT							3
-
 
 LPCTSTR lpszClass = L"Window Class Name";
 LPCTSTR lpszWindowName = L"windows program";
@@ -80,6 +60,39 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	serveraddr.sin_port = htons(SERVERPORT);
 	retval = connect(sock, (struct sockaddr*)&serveraddr, sizeof(serveraddr));
 	if (retval == SOCKET_ERROR) return 1;
+
+	//맵 위치 파일전송
+	long long f_size;
+	retval = recv(sock, (char*)&f_size, sizeof(f_size), 0);
+	if (retval == SOCKET_ERROR) {
+		err_display("recv()");
+	}
+
+	FILE* ff;
+	ff = fopen("mappos.txt", "wb");
+	if (NULL == ff) {
+		exit(1);
+	}
+	else {
+		memset(buf, 0, BUFSIZE);
+
+		//가변 
+		while (true) {
+			retval = recv(sock, buf, BUFSIZE, 0);
+			if (retval == 0) {
+				break;
+			}
+
+			//데이터 쓰기
+			fwrite(buf, sizeof(char), retval, ff);
+			printf("%s", buf);
+			memset(buf, 0, BUFSIZE);
+		}
+	}
+	fclose(ff);
+	putchar('\n');
+	printf("File - %s - download complete\n", "mappos.txt");
+	
 
 	// 캐릭터 코드 및 초기값 받기
 	retval = recv(sock, (char*)&player_code, sizeof(player_code), MSG_WAITALL);

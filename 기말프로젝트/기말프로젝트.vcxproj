@@ -142,8 +142,8 @@
     <ClCompile Include="소스.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\Server\global.h" />
-    <ClInclude Include="..\Server\Protocol.h" />
+    <ClInclude Include="global.h" />
+    <ClInclude Include="Protocol.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
