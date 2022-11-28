@@ -16,6 +16,7 @@
 #include "Protocol.h"
 
 #define SERVERIP "127.0.0.1"
+#define BLOCKNUM 24
 using namespace std;
 
 LPCTSTR lpszClass = L"Window Class Name";
@@ -31,13 +32,6 @@ struct BLOCK {
 	int x;
 	int y;
 	int width;
-};
-
-class Cblock {
-public:
-	int x;
-	int y;
-	int width;
 
 	void read(ifstream& in) {
 		int a, b, w;
@@ -50,6 +44,7 @@ public:
 		width = w;
 	}
 };
+BLOCK Block_local[28];
 
 struct PlayerInfo {
 	bool keyPress_D, keyPress_A;
@@ -93,7 +88,7 @@ void ReadFile(SOCKET sock)
 			memset(buf, 0, BUFSIZE);
 
 			if (f_size <= sum) {
-				SetEvent(hFileEvent);
+				//SetEvent(hFileEvent);
 				break;
 			}
 		}
@@ -102,15 +97,14 @@ void ReadFile(SOCKET sock)
 	putchar('\n');
 	printf("File - %s - download complete\n", "mappos.txt");
 
-	vector<Cblock> v{ 28 };
-
 	ifstream in{ "mappos.txt", ios::binary };
-	for (Cblock& b : v) {
-		b.read(in);
+
+	for (int i = 0; i < BLOCKNUM; ++i) {
+		Block_local[i].read(in);
 	}
-	for (Cblock& b : v) {
-		cout << b.x  << " " << b.y << " " << b.width << endl;
-	}
+	/*for (int i = 0; i < BLOCKNUM; ++i) {
+		cout << Block_local[i].x  << " " << Block_local[i].y << " " << Block_local[i].width << endl;
+	}*/
 }
 
 DWORD WINAPI CommunicationThread(LPVOID arg)
@@ -221,7 +215,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 	COLORREF color;
 
-	BLOCK Block_local[25] = { 0 };
+	BLOCK Block_local[24] = { 0 };
 
 	static HBITMAP hBitmap, hBitmap2;
 	static CImage BackGround, imgGround;
@@ -271,8 +265,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int CharNum = 1;
 	static int click = 0;
 	static int heart = 3;
-
-	static int blockNum;
 
 	static int Monster1Turn;	//	아래쪽 몬스터, 해당 변수가 짝수인지 홀수인지에 따라 방향 바뀜
 	static int Monster2Turn;	//	위쪽 몬스터
@@ -369,8 +361,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int MoveBlock;	// 방향 변수 -> 짝수일 경우 왼쪽으로 이동, 아닐 경우 오른쪽
 	// 여기 위까지 방해되면 주석 처리 해주세요
 
-	blockNum = 23;
-
 	static int Monster1_X;	//	아래쪽 몬스터 x좌표
 	static int Monster2_X;	//	위쪽 몬스터 x좌표
 
@@ -383,7 +373,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static BYTE right = 0;
 	static bool jump = 0;
 
-	WaitForSingleObject(hFileEvent, INFINITE);
+	//WaitForSingleObject(hFileEvent, INFINITE);
 	switch (iMsg) {
 	case WM_CREATE:
 		PlaySound(L"start.wav", NULL, SND_ASYNC);
@@ -581,11 +571,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		Guide.Draw(mem1dc, 750 - charPos.X, 590 - charPos.Y, w_guide * 2 / 3, h_guide * 2 / 3, 0, 0, w_guide, h_guide);
 		Portal.Draw(mem1dc, Portal_X - charPos.X, Portal_Y - charPos.Y - h_Portal * 1 / 4, w_Portal * 1 / 4, h_Portal * 1 / 4, 0, 0, w_Portal, h_Portal);
 
-		for (int i = 0; i < blockNum; i++) {
+		for (int i = 0; i < BLOCKNUM; i++) {
 			Block.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);	// 벽돌-
 		}
 
-		Block.Draw(mem1dc, Block_localX - charPos.X, Block_local[23].y - charPos.Y, Block_local[23].width, 60, 0, 0, w_block, h_block);
+		//블록 28개까지
+		//Block.Draw(mem1dc, Block_localX - charPos.X, Block_local[23].y - charPos.Y, Block_local[23].width, 60, 0, 0, w_block, h_block);
 		hBitmap2 = CreateCompatibleBitmap(mem1dc, rect.right, rect.bottom);
 		mem2dc = CreateCompatibleDC(mem1dc);
 		SelectObject(mem2dc, hBitmap2);
@@ -774,7 +765,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			Key_Image = 0;
 		}
 
-		Monster1_X = Block_local[7].x - charPos.X + Block_local[7].width - 72;
+		//monster1_x 값 수정
+		Monster1_X = Block_local[7].x - charPos.X + Block_local[7].width;
 		Monster2_X = Block_local[15].x - charPos.X;
 
 		// 내캐릭터 그리기
