@@ -215,7 +215,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 	COLORREF color;
 
-	BLOCK Block_local[24] = { 0 };
+	//BLOCK Block_local[24] = { 0 };
 
 	static HBITMAP hBitmap, hBitmap2;
 	static CImage BackGround, imgGround;
@@ -284,75 +284,75 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 	static int player_code;
 
-	Block_local[0].x = 150;
-	Block_local[0].y = 600;
-	Block_local[0].width = 50;
-	Block_local[1].x = 250;
-	Block_local[1].y = 550;
-	Block_local[1].width = 200;
-	Block_local[2].x = 500;
-	Block_local[2].y = 470;
-	Block_local[2].width = 70;
-	Block_local[3].x = 700;
-	Block_local[3].y = 510;
-	Block_local[3].width = 300;
-	Block_local[4].x = 1080;
-	Block_local[4].y = 430;
-	Block_local[4].width = 300;
-	Block_local[5].x = 1000;
-	Block_local[5].y = 330;
-	Block_local[5].width = 100;
-	Block_local[6].x = 1150;
-	Block_local[6].y = 260;
-	Block_local[6].width = 100;
-	Block_local[7].x = 1370;	// 여기 몬스터포인트로 하면 될 듯!
-	Block_local[7].y = 170;
-	Block_local[7].width = 900;
-	Block_local[8].x = 1800;
-	Block_local[8].y = 70;
-	Block_local[8].width = 100;
-	Block_local[9].x = 1600;
-	Block_local[9].y = 0;
-	Block_local[9].width = 100;
-	Block_local[10].x = 1400;
-	Block_local[10].y = -70;
-	Block_local[10].width = 100;
-	Block_local[11].x = 500;		// 여기도 큼지막한 블럭이긴 함 아 문을 둘까
-	Block_local[11].y = -140;
-	Block_local[11].width = 800;
-	Block_local[12].x = 0;
-	Block_local[12].y = -220;
-	Block_local[12].width = 400;
-	Block_local[13].x = 500;
-	Block_local[13].y = -270;
-	Block_local[13].width = 100;
-	Block_local[14].x = 670;
-	Block_local[14].y = -340;
-	Block_local[14].width = 100;
-	Block_local[15].x = 850;			// 몬스터 포인트?
-	Block_local[15].y = -400;
-	Block_local[15].width = 600;
-	Block_local[16].x = 1300;
-	Block_local[16].y = -460;
-	Block_local[16].width = 100;
-	Block_local[17].x = 1500;
-	Block_local[17].y = -530;
-	Block_local[17].width = 50;
-	Block_local[18].x = 1650;
-	Block_local[18].y = -600;
-	Block_local[18].width = 100;
-	Block_local[19].x = 1800;
-	Block_local[19].y = -700;
-	Block_local[19].width = 400;
-	Block_local[20].x = 1700;
-	Block_local[20].y = -770;
-	Block_local[20].width = 50;
-	Block_local[21].x = 1500;
-	Block_local[21].y = -850;
-	Block_local[21].width = 100;
-	Block_local[22].x = 1200;
-	Block_local[22].y = -950;
-	Block_local[22].width = 150;
+	//Block_local[0].x = 150;
+	//Block_local[0].y = 600;
+	//Block_local[0].width = 50;
+	//Block_local[1].x = 250;
+	//Block_local[1].y = 550;
+	//Block_local[1].width = 200;
+	//Block_local[2].x = 500;
+	//Block_local[2].y = 470;
+	//Block_local[2].width = 70;
+	//Block_local[3].x = 700;
+	//Block_local[3].y = 510;
+	//Block_local[3].width = 300;
+	//Block_local[4].x = 1080;
+	//Block_local[4].y = 430;
+	//Block_local[4].width = 300;
+	//Block_local[5].x = 1000;
+	//Block_local[5].y = 330;
+	//Block_local[5].width = 100;
+	//Block_local[6].x = 1150;
+	//Block_local[6].y = 260;
+	//Block_local[6].width = 100;
+	//Block_local[7].x = 1370;	// 여기 몬스터포인트로 하면 될 듯!
+	//Block_local[7].y = 170;
+	//Block_local[7].width = 900;
+	//Block_local[8].x = 1800;
+	//Block_local[8].y = 70;
+	//Block_local[8].width = 100;
+	//Block_local[9].x = 1600;
+	//Block_local[9].y = 0;
+	//Block_local[9].width = 100;
+	//Block_local[10].x = 1400;
+	//Block_local[10].y = -70;
+	//Block_local[10].width = 100;
+	//Block_local[11].x = 500;		// 여기도 큼지막한 블럭이긴 함 아 문을 둘까
+	//Block_local[11].y = -140;
+	//Block_local[11].width = 800;
+	//Block_local[12].x = 0;
+	//Block_local[12].y = -220;
+	//Block_local[12].width = 400;
+	//Block_local[13].x = 500;
+	//Block_local[13].y = -270;
+	//Block_local[13].width = 100;
+	//Block_local[14].x = 670;
+	//Block_local[14].y = -340;
+	//Block_local[14].width = 100;
+	//Block_local[15].x = 850;			// 몬스터 포인트?
+	//Block_local[15].y = -400;
+	//Block_local[15].width = 600;
+	//Block_local[16].x = 1300;
+	//Block_local[16].y = -460;
+	//Block_local[16].width = 100;
+	//Block_local[17].x = 1500;
+	//Block_local[17].y = -530;
+	//Block_local[17].width = 50;
+	//Block_local[18].x = 1650;
+	//Block_local[18].y = -600;
+	//Block_local[18].width = 100;
+	//Block_local[19].x = 1800;
+	//Block_local[19].y = -700;
+	//Block_local[19].width = 400;
+	//Block_local[20].x = 1700;
+	//Block_local[20].y = -770;
+	//Block_local[20].width = 50;
+	//Block_local[21].x = 1500;
+	//Block_local[21].y = -850;
+	//Block_local[21].width = 100;
+	//Block_local[22].x = 1200;
+	//Block_local[22].y = -950;
+	//Block_local[22].width = 150;
 
 	// 이동 블록 테스트용 -> static int로 선언해야 값 변경 반영됨
 	static int Block_localX = 50;
@@ -619,7 +619,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		}
 
 		//	몬스터가 블록 왼쪽, 오른쪽 끝에 도달하면 방향 바꾸는 코드
-
+		
 		if (KillMonster1 == 0) {
 			if (Monster1_X < Block_local[7].x || Monster1_X + w_monster[count] / 2 > Block_local[7].x - Block_local[7].width) {
 				if (Monster1_X < Block_local[7].x) {
@@ -687,7 +687,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				Monster1_X += 5;
 			}
 		}
-
+		
 		//	위랑 똑같은 내용인데 위쪽 몬스터
 
 		if (KillMonster2 == 0) {
@@ -796,6 +796,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				}
 			}
 		}
+		
+		
 		if (Image_Number == 0) {
 			Start.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 		}
@@ -881,7 +883,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				KillNum = 1;
 			}
 		}
-
+		
 		// 중력 처리 하려고 했던 부분
 		if (jump == 0 && GetPixel(mem1dc, x, y + 70) != RGB(37, 176, 77) && y != 620) {
 			OnBlock = 0;
@@ -892,7 +894,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			jumpcount = 10;
 		}
 		*/
-
 		if (click != 0) {
 			if (heart == 3) {
 				Heart.Draw(mem1dc, 10, 10, w_heart / 120, h_heart / 120, 0, 0, w_heart, h_heart);
