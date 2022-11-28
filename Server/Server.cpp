@@ -1,15 +1,37 @@
 ﻿#include "global.h"
 #include "Protocol.h"
+#include <fstream>
+#include <vector>
+#include <iostream>
+using namespace std;
 
 int clientCount = 0;
 FILE* fp;
 
-HANDLE gameStartEvent;
+HANDLE gameStartEvent, hFileEvent;
 CRITICAL_SECTION cs;
 SOCKET sockManager[MAX_PLAYER];
 
 int ready = 0;
 bool gameover = false;
+
+class BLOCK {
+public:
+	int x;
+	int y;
+	int width;
+
+	void read(ifstream& in) {
+		int a, b, w;
+		in >> a;
+		in >> b;
+		in >> w;
+
+		x = a;
+		y = b;
+		width = w;
+	}
+};
 
 struct PlayerInfo {
 	bool keyPress_D, keyPress_A;
@@ -115,32 +137,11 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 	LeaveCriticalSection(&cs);
 }
 
-void SendMapFile()
-{
-
-}
-
-
-DWORD WINAPI RecvThread(LPVOID arg)
+void ReadFile(SOCKET client_sock)
 {
 	int retval;
-	SOCKET client_sock = (SOCKET)arg;
 	char buf[BUFSIZE];
-	BYTE msg = 0;
 
-	struct sockaddr_in clientaddr;
-	char addr[INET_ADDRSTRLEN];
-	int addrlen;
-
-	addrlen = sizeof(clientaddr);
-	getpeername(client_sock, (struct sockaddr*)&clientaddr, &addrlen);
-	inet_ntop(AF_INET, &clientaddr.sin_addr, addr, sizeof(addr));
-
-	BYTE player_code = RandomCharacter();
-
-	sockManager[player_code] = client_sock;
-
-	//맵 위치 파일전송
 	FILE* ff;
 	ff = fopen("mappos.txt", "rb");
 	if (!ff) {
@@ -178,6 +179,41 @@ DWORD WINAPI RecvThread(LPVOID arg)
 		printf("File - %s - Send complete\n", "mappos.txt");
 	}
 
+	//맵 파일 읽어서 변수에 위치 저장
+	vector<BLOCK> v{30};
+
+	ifstream in{ "mappos.txt", ios::binary };
+	for (BLOCK& b : v) {
+		b.read(in);
+	}
+	/*for (BLOCK& b : v) {
+		cout << b.x  << " " << b.y << " " << b.width << endl;
+	}*/
+}
+
+
+DWORD WINAPI RecvThread(LPVOID arg)
+{
+	int retval;
+	SOCKET client_sock = (SOCKET)arg;
+	BYTE msg = 0;
+
+	struct sockaddr_in clientaddr;
+	char addr[INET_ADDRSTRLEN];
+	int addrlen;
+
+	addrlen = sizeof(clientaddr);
+	getpeername(client_sock, (struct sockaddr*)&clientaddr, &addrlen);
+	inet_ntop(AF_INET, &clientaddr.sin_addr, addr, sizeof(addr));
+
+	BYTE player_code = RandomCharacter();
+
+	sockManager[player_code] = client_sock;
+
+	//맵 위치 파일전송
+	ReadFile(client_sock);
+
+	//WaitForSingleObject(hFileEvent, INFINITE);
 	// 캐릭터 초기값 설정
 	InitPlayer(player_code);
 
@@ -194,7 +230,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	LeaveCriticalSection(&cs);
 
 	
-	//WaitForSingleObject(gameStartEvent, INFINITE);
+	WaitForSingleObject(gameStartEvent, INFINITE);
 
 	//게임 시작
 	printf("%d : gamestart\n", player_code);
@@ -301,6 +337,7 @@ int main()
 	int addrlen;
 
 	gameStartEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	hFileEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
 	InitializeCriticalSection(&cs);
 	while (1) {
@@ -334,6 +371,7 @@ int main()
 	closesocket(listen_sock);
 
 	CloseHandle(gameStartEvent);
+	CloseHandle(hFileEvent);
 
 	DeleteCriticalSection(&cs);
 	WSACleanup();
