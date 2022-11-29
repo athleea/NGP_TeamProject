@@ -44,7 +44,7 @@ struct BLOCK {
 		width = w;
 	}
 };
-BLOCK Block_local[28];
+static BLOCK Block_local[28];
 
 struct PlayerInfo {
 	bool keyPress_D, keyPress_A;
@@ -127,29 +127,32 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	serveraddr.sin_port = htons(SERVERPORT);
 	retval = connect(sock, (struct sockaddr*)&serveraddr, sizeof(serveraddr));
 	if (retval == SOCKET_ERROR) return 1;
-
-	//맵 위치 파일전송
-	ReadFile(sock);	
+	
+	//맵 위치 파일수신
+	//ReadFile(sock);
 
 	retval = send(sock, (char*)&Block_local[2].x, sizeof(Block_local[2].x), 0);	// 몬스터 초기 좌표 전송, Block_local[2].x 부분 변경 필요
 	if (retval == SOCKET_ERROR) {
 		return 1;
 	}
-
+	printf("%d\n", Block_local[2].x);
 	retval = send(sock, (char*)&Block_local[2].width, sizeof(Block_local[2].width), 0);
 	if (retval == SOCKET_ERROR) {
 		return 1;
 	}
+	printf("%d\n", Block_local[2].width);
 
 	// 캐릭터 코드 및 초기값 받기
 	retval = recv(sock, (char*)&player_code, sizeof(player_code), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) return  1;
+	int value = 0;
 
 	while (1) {
 		retval = send(sock, (char*)&msg, sizeof(msg), 0);
 		if (retval == SOCKET_ERROR) {
 			break;
 		}
+
 		/*retval = recv(sock, (char*)&Monster_X[0], sizeof(Monster_X[0]), 0);
 		if (retval == SOCKET_ERROR) {
 			break;
@@ -159,12 +162,17 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 		if (retval == SOCKET_ERROR) {
 			break;
 		}*/
-		
 
 		retval = recv(sock, (char*)&players, sizeof(players), MSG_WAITALL);
 		if (retval == SOCKET_ERROR) {
 			break;
 		}
+		retval = recv(sock, (char*)&value, sizeof(int), MSG_WAITALL);
+		if (retval == SOCKET_ERROR) {
+			break;
+		}
+
+		printf("%d\n", value);
 	}
 
 	//Exit
@@ -208,9 +216,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	);
 
 	InitializeCriticalSection(&cs);
-	hRenderEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-	hRecvEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
-	hFileEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+
+	hFileEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 
 	HANDLE hThread = CreateThread(NULL, 0, CommunicationThread, NULL, 0, NULL);
 	ShowWindow(hWnd, nCmdShow);
@@ -276,7 +283,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 	static int count = 0;
 
-	static int jumpcount = 0;
+
 
 	static int last;
 
@@ -300,7 +307,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int Portal_X = 800;		// Portal 위치 수정 필요
 	static int Portal_Y = -120;
 
-	static int player_code;
 
 	//Block_local[0].x = 150;
 	//Block_local[0].y = 600;
@@ -372,25 +378,30 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	//Block_local[22].y = -950;
 	//Block_local[22].width = 150;
 
+	/*
 	// 이동 블록 테스트용 -> static int로 선언해야 값 변경 반영됨
 	static int Block_localX = 50;
 	Block_local[23].y = 500;
 	Block_local[23].width = 100;
 	static int MoveBlock;	// 방향 변수 -> 짝수일 경우 왼쪽으로 이동, 아닐 경우 오른쪽
 	// 여기 위까지 방해되면 주석 처리 해주세요
-
+	*/
+	/*
 	static int Monster1_X;	//	아래쪽 몬스터 x좌표
 	static int Monster2_X;	//	위쪽 몬스터 x좌표
+	*/
 
 	static int KillMonster1;
 	static int KillMonster2;
 
+	static int player_code;
+	static COORD charPos = { 0,0 };
 	static COORD pos = { 0,0 };
 	static BYTE left = 0;
 	static BYTE right = 0;
 	static bool jump = 0;
+	static int jumpcount = 0;
 
-	//WaitForSingleObject(hFileEvent, INFINITE);
 	switch (iMsg) {
 	case WM_CREATE:
 		PlaySound(L"start.wav", NULL, SND_ASYNC);
@@ -555,8 +566,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			h_monster[i] = Monster_R[i].GetHeight();
 		}
 
+		/*
 		Monster1_X = Block_local[2].x - charPos.X + Block_local[2].width - 72;
 		Monster2_X = Block_local[15].x - charPos.X;
+		*/
 
 		SetTimer(hWnd, 0, 50, NULL);
 
@@ -589,10 +602,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		Guide.Draw(mem1dc, 750 - charPos.X, 590 - charPos.Y, w_guide * 2 / 3, h_guide * 2 / 3, 0, 0, w_guide, h_guide);
 		Portal.Draw(mem1dc, Portal_X - charPos.X, Portal_Y - charPos.Y - h_Portal * 1 / 4, w_Portal * 1 / 4, h_Portal * 1 / 4, 0, 0, w_Portal, h_Portal);
 
+		/*
 		for (int i = 0; i < BLOCKNUM; i++) {
 			Block.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);	// 벽돌-
 		}
-
+		*/
 		//블록 28개까지
 		//Block.Draw(mem1dc, Block_localX - charPos.X, Block_local[23].y - charPos.Y, Block_local[23].width, 60, 0, 0, w_block, h_block);
 		hBitmap2 = CreateCompatibleBitmap(mem1dc, rect.right, rect.bottom);
@@ -612,7 +626,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			Switch = 1;
 			Eblock[1].Draw(mem1dc, 600 - charPos.X, 660 - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
 		}
-		
+		/*
 		// 블록 이동 코드 (현재 사용 x)
 		if (Switch == 1) {
 			if (MoveBlock % 2 == 0) {
@@ -635,9 +649,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				}
 			}
 		}
-
+		*/
 		//	몬스터가 블록 왼쪽, 오른쪽 끝에 도달하면 방향 바꾸는 코드
-
+		/*
 		if (KillMonster1 == 0) {
 			if (MonsterTurn[0] % 2 == 0) {
 				Monster_L[count].Draw(mem1dc, Monster_X[0], Block_local[2].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
@@ -647,7 +661,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				Monster_R[count].Draw(mem1dc, Monster_X[0], Block_local[2].y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
 			}
 		}
-		
+		*/
 		/*if (KillMonster1 == 0) {
 			if (Monster1_X < Block_local[2].x - charPos.X || Monster1_X + w_monster[count] / 2 > Block_local[2].x - charPos.X + Block_local[2].width) {
 				if (Monster1_X < Block_local[2].x - charPos.X) {
@@ -781,7 +795,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				Monster2_X += 5;
 			}
 		}*/
-
+/*
 		if (Key_Image == 1)
 			Key.Draw(mem1dc, Key_X - charPos.X, Key_Y - charPos.Y, w_Key * 1 / 2, h_Key * 1 / 2, 0, 0, w_Key, h_Key);
 
@@ -792,36 +806,33 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		if (players[player_code].pos.X >= Key_X - charPos.X && players[player_code].pos.X <= Key_X - charPos.X + w_Key * 1 / 2 && players[player_code].pos.Y >= Key_Y - charPos.Y && players[player_code].pos.Y <= Key_Y + h_Key * 1 / 2) {
 			Key_Image = 0;
 		}
-
+*/
 		// 내캐릭터 그리기
 		if (left == 0 && right == 0 && jump == 0)
 			imgSprite1[count].Draw(mem1dc, pos.X, pos.Y, w1_stand[count] / 2, h1_stand[count] / 2, 0, 0, w1_stand[count], h1_stand[count]);
-		else if (jump == 0) {
-			if (left == 1)
-				imgSprite1_runL[count].Draw(mem1dc, pos.X, pos.Y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
-			else if (right == 1)
-				imgSprite1_runR[count].Draw(mem1dc, pos.X, pos.Y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
-		}
+		else if (jump == 1)
+			imgSprite1_jump[count].Draw(mem1dc, pos.X, pos.Y, w1_jump[count] / 2, h1_jump[count] / 2, 0, 0, w1_jump[count], h1_jump[count]);
+		else if (left == 1)
+			imgSprite1_runL[count].Draw(mem1dc, pos.X, pos.Y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
+		else if (right == 1)
+			imgSprite1_runR[count].Draw(mem1dc, pos.X, pos.Y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
+		
 
 		//다른 캐릭터들 그리기
 		for (int i = 0; i < MAX_PLAYER; ++i) {
 			if (i != player_code) {
-				if (players[i].left == 0 && players[i].right == 0 && players[i].jump == 0) {
+				if (players[i].left == 0 && players[i].right == 0 && players[i].jump == 0)
 					imgSprite1[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, w1_stand[count] / 2, h1_stand[count] / 2, 0, 0, w1_stand[count], h1_stand[count]);
-				}
-				else if (players[i].jump == 0) {
-					if(players[i].left == 1)
-						imgSprite1_runL[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
-					else if(players[i].right == 1)
-						imgSprite1_runR[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
-				}
-				else {
-
-				}
+				else if (players[i].jump == 1) 
+					imgSprite1_jump[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, w1_jump[count] / 2, h1_jump[count] / 2, 0, 0, w1_jump[count], h1_jump[count]);
+				else if(players[i].left == 1)
+					imgSprite1_runL[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
+				else if(players[i].right == 1)
+					imgSprite1_runR[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
 			}
 		}
 		
-		
+		/*
 		if (Image_Number == 0) {
 			Start.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 		}
@@ -855,7 +866,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				KillNum = 0;
 			}
 		}
-
+		*/
 		/*
 		if (jump == 1) {
 			jumpcount++;
@@ -918,6 +929,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			jumpcount = 10;
 		}
 		*/
+		/*
 		if (click != 0) {
 			if (heart == 3) {
 				Heart.Draw(mem1dc, 10, 10, w_heart / 120, h_heart / 120, 0, 0, w_heart, h_heart);
@@ -925,20 +937,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				Heart.Draw(mem1dc, 30 + w_heart / 60, 10, w_heart / 120, h_heart / 120, 0, 0, w_heart, h_heart);
 			}
 
-			if (heart == 2) {
+			else if (heart == 2) {
 				Heart.Draw(mem1dc, 10, 10, w_heart / 120, h_heart / 120, 0, 0, w_heart, h_heart);
 				Heart.Draw(mem1dc, 20 + w_heart / 120, 10, w_heart / 120, h_heart / 120, 0, 0, w_heart, h_heart);
 			}
 
-			if (heart == 1) {
+			else if (heart == 1) {
 				Heart.Draw(mem1dc, 10, 10, w_heart / 120, h_heart / 120, 0, 0, w_heart, h_heart);
 			}
 
-			if (heart == 0) {
+			else if (heart == 0) {
 				GameOver.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 			}
 		}
-
+		*/
 		if (MapNum == 1) {
 			Map.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 		}
@@ -956,8 +968,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		if (Image_Number == 8) {
 			Guide2.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 		}
-
-		printf("%d : %d\r", pos.X, charPos.X);
 
 		BitBlt(hdc, 0, 0, rect.right, rect.bottom, mem1dc, 0, 0, SRCCOPY);
 

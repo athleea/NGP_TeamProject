@@ -2,7 +2,7 @@
 #include "Protocol.h"
 #include <fstream>
 #include <vector>
-#include <iostream>
+
 using namespace std;
 
 int clientCount = 0;
@@ -204,15 +204,14 @@ void ReadFile(SOCKET client_sock)
 void MonsterPos(int num, BYTE player_code)
 {
 	if (num == 0) {
-		if (Monster_X[num] < Block_local[2].x - players[player_code].charPos.X || Monster_X[num] + 72 > Block_local[2].x - players[player_code].charPos.X + Block_local[2].width) {
-			if (Monster_X[num] < Block_local[2].x - players[player_code].charPos.X) {
-				Monster_X[num] = Block_local[2].x - players[player_code].charPos.X;
+		if (Monster_X[num] < Block_local[2].x || Monster_X[num] + 72 > Block_local[2].x + Block_local[2].width) {
+			if (Monster_X[num] < Block_local[2].x) {
+				Monster_X[num] = Block_local[2].x;
 			}
 
-			if (Monster_X[num] + 72 > Block_local[2].x - players[player_code].charPos.X + Block_local[2].width) {
-				Monster_X[num] = Block_local[2].x - players[player_code].charPos.X + Block_local[2].width - 72;
+			if (Monster_X[num] + 72 > Block_local[2].x - Block_local[2].width) {
+				Monster_X[num] = Block_local[2].x - Block_local[2].width - 72;
 			}
-
 			MonsterTurn[num]++;
 		}
 
@@ -245,7 +244,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	sockManager[player_code] = client_sock;
 
 	//맵 위치 파일전송
-	ReadFile(client_sock);
+	//ReadFile(client_sock);
 	//WaitForSingleObject(hFileEvent, INFINITE);
 
 	retval = recv(client_sock, (char*)&Block_local[2].x, sizeof(Block_local[2].x), MSG_WAITALL);
@@ -276,11 +275,11 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	LeaveCriticalSection(&cs);
 
 	
-	/*WaitForSingleObject(gameStartEvent, INFINITE);*/
+	WaitForSingleObject(gameStartEvent, INFINITE);
 
 	//게임 시작
 	printf("%d : gamestart\n", player_code);
-
+	int value = 1234;
 	while (1) {  // 1 -> checkGameEnd()
 		// 키입력 Recv
 		retval = recv(client_sock, (char*)&msg, sizeof(msg), MSG_WAITALL);
@@ -312,6 +311,11 @@ DWORD WINAPI RecvThread(LPVOID arg)
 			break;
 		}
 
+		retval = send(client_sock, (char*)&value, sizeof(int), 0);
+		if (retval == SOCKET_ERROR) {
+			break;
+		}
+
 		Sleep(10);
 	}
 
@@ -324,6 +328,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 
 DWORD WINAPI CollisionSendThread(LPVOID arg)
 {
+	
 	printf("enter collsion\n");
 	char restart = 1;
 	int retval;
@@ -353,9 +358,9 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 
 		//접속 끊기면 break;
 	}
-
+	
 	ResetEvent(gameStartEvent);
-
+	
 	return 0;
 }
 
@@ -391,6 +396,7 @@ int main()
 	hFileEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
 	InitializeCriticalSection(&cs);
+
 	while (1) {
 		addrlen = sizeof(clientaddr);
 		client_sock = accept(listen_sock, (struct sockaddr*)&clientaddr, &addrlen);

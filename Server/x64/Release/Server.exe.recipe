@@ -2,7 +2,7 @@
 <Project>
   <ProjectOutputs>
     <ProjectOutput>
-      <FullPath>C:\Project\NGP_TeamProject\Server\x64\Release\Server.exe</FullPath>
+      <FullPath>D:\NGP_TeamProject\x64\Release\Server.exe</FullPath>
     </ProjectOutput>
   </ProjectOutputs>
   <ContentFiles />
