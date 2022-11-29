@@ -146,22 +146,22 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	if (retval == SOCKET_ERROR) return  1;
 
 	while (1) {
-		/*retval = recv(sock, (char*)&Monster_X[0], sizeof(Monster_X[0]), MSG_WAITALL);
-		if (retval == SOCKET_ERROR) {
-			break;
-		}
-
-		retval = recv(sock, (char*)&MonsterTurn[0], sizeof(MonsterTurn[0]), MSG_WAITALL);
-		if (retval == SOCKET_ERROR) {
-			break;
-		}*/
-
 		retval = send(sock, (char*)&msg, sizeof(msg), 0);
 		if (retval == SOCKET_ERROR) {
 			break;
 		}
 
 		retval = recv(sock, (char*)&players, sizeof(players), MSG_WAITALL);
+		if (retval == SOCKET_ERROR) {
+			break;
+		}
+
+		retval = recv(sock, (char*)&Monster_X[0], sizeof(Monster_X[0]), 0);
+		if (retval == SOCKET_ERROR) {
+			break;
+		}
+
+		retval = recv(sock, (char*)&MonsterTurn[0], sizeof(MonsterTurn[0]), 0);
 		if (retval == SOCKET_ERROR) {
 			break;
 		}
@@ -638,7 +638,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 		//	몬스터가 블록 왼쪽, 오른쪽 끝에 도달하면 방향 바꾸는 코드
 
-		/*if (KillMonster1 == 0) {
+		if (KillMonster1 == 0) {
 			if (MonsterTurn[0] % 2 == 0) {
 				Monster_L[count].Draw(mem1dc, Monster_X[0], Block_local[2].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
 			}
@@ -646,9 +646,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			if (MonsterTurn[0] % 2 != 0) {
 				Monster_R[count].Draw(mem1dc, Monster_X[0], Block_local[2].y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
 			}
-		}*/
+		}
 		
-		if (KillMonster1 == 0) {
+		/*if (KillMonster1 == 0) {
 			if (Monster1_X < Block_local[2].x - charPos.X || Monster1_X + w_monster[count] / 2 > Block_local[2].x - charPos.X + Block_local[2].width) {
 				if (Monster1_X < Block_local[2].x - charPos.X) {
 					Monster1_X = Block_local[2].x - charPos.X;
@@ -780,7 +780,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 				Monster2_X += 5;
 			}
-		}
+		}*/
 
 		if (Key_Image == 1)
 			Key.Draw(mem1dc, Key_X - charPos.X, Key_Y - charPos.Y, w_Key * 1 / 2, h_Key * 1 / 2, 0, 0, w_Key, h_Key);

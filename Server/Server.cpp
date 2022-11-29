@@ -14,8 +14,8 @@ SOCKET sockManager[MAX_PLAYER];
 
 int ready = 0;
 bool gameover = false;
-int Monster_X[3] = { 0 };
-int MonsterTurn[3] = { 0 };
+static int Monster_X[3] = { 0 };
+static int MonsterTurn[3] = { 0 };
 
 class BLOCK {
 public:
@@ -282,22 +282,8 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	printf("%d : gamestart\n", player_code);
 
 	while (1) {  // 1 -> checkGameEnd()
-		/*MonsterPos(0, player_code);
-
-		retval = send(client_sock, (char*)&Monster_X[0], sizeof(Monster_X[0]), 0);
-		if (retval == SOCKET_ERROR) {
-			break;
-		}
-
-		printf("Monster_X[0]: %d\n", Monster_X[0]);
-
-		retval = send(client_sock, (char*)&MonsterTurn[0], sizeof(MonsterTurn[0]), 0);
-		if (retval == SOCKET_ERROR) {
-			break;
-		}*/
-
 		// 키입력 Recv
-		retval = recv(client_sock, (char*)&msg, sizeof(msg), 0);
+		retval = recv(client_sock, (char*)&msg, sizeof(msg), MSG_WAITALL);
 		if (retval == SOCKET_ERROR) {
 			break;
 		}
@@ -320,6 +306,7 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 	printf("enter collsion\n");
 	char restart = 1;
 	int retval;
+	SOCKET client_sock = (SOCKET)arg;
 
 	while (1) {
 		EnterCriticalSection(&cs);
@@ -352,11 +339,25 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 				LeaveCriticalSection(&cs);
 				break;
 			}
+
 			LeaveCriticalSection(&cs);
+
+			MonsterPos(0, i);
+
+			retval = send(client_sock, (char*)&Monster_X[0], sizeof(Monster_X[0]), 0);
+			if (retval == SOCKET_ERROR) {
+				break;
+			}
+
+			printf("Monster_X[0]: %d\n", Monster_X[0]);
+
+			retval = send(client_sock, (char*)&MonsterTurn[0], sizeof(MonsterTurn[0]), 0);
+			if (retval == SOCKET_ERROR) {
+				break;
+			}
 		}
 
 		Sleep(10);
-
 	}
 
 	ResetEvent(gameStartEvent);
@@ -416,7 +417,7 @@ int main()
 		}
 		
 		if (clientCount == 3) {
-			hThread = CreateThread(NULL, 0, CollisionSendThread, NULL, 0, NULL);
+			hThread = CreateThread(NULL, 0, CollisionSendThread, (LPVOID)client_sock, 0, NULL);
 			if (hThread == NULL) { CloseHandle(hThread); }
 		}
 		LeaveCriticalSection(&cs);
@@ -425,6 +426,7 @@ int main()
 	}
 
 	closesocket(listen_sock);
+	closesocket(client_sock);
 
 	CloseHandle(gameStartEvent);
 	CloseHandle(hFileEvent);
