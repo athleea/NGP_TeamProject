@@ -377,7 +377,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 		if (retval == SOCKET_ERROR) {
 			break;
 		}
-		printf("Monster_X[0]: %d\n", Monster_X[0]);
+		//printf("Monster_X[0]: %d\n", Monster_X[0]);
 
 		Sleep(10);
 	}

@@ -283,7 +283,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static CImage BackGround, imgGround;
 
 	static ImgSprite imgSprite[3];
-	static CImage Start, Dialog[6], Guide, Block, Heart, Key, Portal, Clear[2], Guide2, GameOver, Monster_L[4], Monster_R[4], Map, Damage[4], Eblock[2];
+	static CImage Start, Dialog[6], Guide, Heart, Key, Portal, Clear[2], Guide2, GameOver, Monster_L[4], Monster_R[4], Map, Damage[4], Eblock[2];
+	static CImage Block, Blockr, Blockg, Blocko;
 
 	static RECT rect;
 
@@ -469,6 +470,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		Damage[3].Load(L"Damage4.png");
 
 		Block.Load(L"Block.png");
+		Blockr.Load(L"Blockr.jpg");
+		Blockg.Load(L"Blockg.jpg");
+		Blocko.Load(L"Blocko.jpg");
 		Eblock[0].Load(L"EventBlock.jpg");
 		Eblock[1].Load(L"EventBlock_down.png");
 
@@ -576,8 +580,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 		Block.Draw(mem1dc, MoveBlock_X[0] - charPos.X, Block_local[0].y - charPos.Y, Block_local[0].width, 60, 0, 0, w_block, h_block);
 
-		for (int i = 1; i < 23; i++) {
-			Block.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);	// 벽돌-
+		for (int i = 0; i < BLOCKNUM; i++) {
+			if (i < 11)
+				Block.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);	// 벽돌-
+			else if (i < 17)
+				Blockr.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
+			else if (i < 22)
+				Blockg.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
+			else
+				Blocko.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
 		}
 		
 		hBitmap2 = CreateCompatibleBitmap(mem1dc, rect.right, rect.bottom);
