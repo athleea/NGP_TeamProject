@@ -52,6 +52,12 @@ struct PlayerInfo {
 
 PlayerInfo players[MAX_PLAYER];
 
+typedef struct SendStruct {
+	PlayerInfo players[MAX_PLAYER];
+	int Monster_X;
+	int MonsterTurn;
+} Send;
+
 void InitPlayer(int player_code);
 void InitPlayer(int player_code)
 {
@@ -257,9 +263,8 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	sockManager[player_code] = client_sock;
 
 	//맵 위치 파일전송
-	//ReadFile(client_sock);
-	//WaitForSingleObject(hFileEvent, INFINITE);
-	
+	ReadFile(client_sock);
+
 	retval = recv(client_sock, (char*)&Block_X, sizeof(Block_X), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) {
 		return 1;
@@ -273,15 +278,13 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	// 캐릭터 초기값 설정
 	InitPlayer(player_code);
 
-	retval = send(client_sock, (char*)&player_code, sizeof(player_code), 0);
+	/*retval = send(client_sock, (char*)&player_code, sizeof(player_code), 0);
 	if (retval == SOCKET_ERROR) {
 		clientCount--;
 		return 1;
-	}
+	}*/
 
 	printf("%d : send_code\n", player_code);
-
-	//Monster_X[0] = Block_local[2].x - players[0].charPos.X + Block_local[2].width - 72;
 
 	EnterCriticalSection(&cs);
 	ready++;
@@ -305,25 +308,18 @@ DWORD WINAPI RecvThread(LPVOID arg)
 
 		MonsterPos(0, 0);
 
-		retval = send(client_sock, (char*)&Monster_X[0], sizeof(Monster_X[0]), 0);
-		if (retval == SOCKET_ERROR) {
-			break;
-		}
-
-		printf("Monster_X[0]: %d\n", Monster_X[0]);
-
-		retval = send(client_sock, (char*)&MonsterTurn[0], sizeof(MonsterTurn[0]), 0);
-		if (retval == SOCKET_ERROR) {
-			break;
-		}
-
 		ProcessPacket(msg, player_code);
 
-		retval = send(client_sock, (char*)&players, sizeof(players), 0);
+		Send send_struct;
+		send_struct.MonsterTurn = MonsterTurn[0];
+		send_struct.Monster_X = Monster_X[0];
+		memcpy(send_struct.players, players, sizeof(players));
+
+		retval = send(client_sock, (char*)&send_struct, sizeof(send_struct), 0);
 		if (retval == SOCKET_ERROR) {
 			break;
 		}
-		
+		printf("Monster_X[0]: %d\n", Monster_X[0]);
 
 		Sleep(10);
 	}
