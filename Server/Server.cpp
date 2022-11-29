@@ -16,8 +16,9 @@ int ready = 0;
 bool gameover = false;
 static int Monster_X[3] = { 0 };
 static int MonsterTurn[3] = { 0 };
-int Block_X = 0;
-int Block_W = 0;
+static int Switch[3] = { 0 };
+static int MoveBlockTurn[3] = { 0 };
+static int MoveBlock_X[3] = { 50, 0, 0 };
 
 class BLOCK {
 public:
@@ -56,6 +57,8 @@ typedef struct SendStruct {
 	PlayerInfo players[MAX_PLAYER];
 	int Monster_X;
 	int MonsterTurn;
+	int MoveBlockTurn;
+	int MoveBlock_X;
 } Send;
 
 void InitPlayer(int player_code);
@@ -223,13 +226,13 @@ void ReadFile(SOCKET client_sock)
 void MonsterPos(int num, BYTE player_code)
 {
 	if (num == 0) {
-		if (Monster_X[num] < Block_X - players[player_code].charPos.X || Monster_X[num] + 72 > Block_X - players[player_code].charPos.X + Block_W) {
-			if (Monster_X[num] < Block_X - players[player_code].charPos.X) {
-				Monster_X[num] = Block_X - players[player_code].charPos.X;
+		if (Monster_X[num] < Block_local[2].x - players[player_code].charPos.X || Monster_X[num] + 72 > Block_local[2].x - players[player_code].charPos.X + Block_local[2].width) {
+			if (Monster_X[num] < Block_local[2].x - players[player_code].charPos.X) {
+				Monster_X[num] = Block_local[2].x - players[player_code].charPos.X;
 			}
 
-			if (Monster_X[num] + 72 > Block_X - players[player_code].charPos.X + Block_W) {
-				Monster_X[num] = Block_X - players[player_code].charPos.X + Block_W - 72;
+			if (Monster_X[num] + 72 > Block_local[2].x - players[player_code].charPos.X + Block_local[2].width) {
+				Monster_X[num] = Block_local[2].x - players[player_code].charPos.X + Block_local[2].width - 72;
 			}
 			MonsterTurn[num]++;
 		}
@@ -240,6 +243,52 @@ void MonsterPos(int num, BYTE player_code)
 
 		else {
 			Monster_X[num] += 1;
+		}
+	}
+}
+
+void EventBlockPos(int num, BYTE player_code)
+{
+	if (num == 0) {
+		/*if (Switch[num] == 1) {
+			if (MoveBlockTurn[num] % 2 == 0) {
+				if (MoveBlock_X[num] - players[player_code].charPos.X >= 0) {
+					MoveBlock_X[num] -= 1;
+				}
+
+				else {
+					MoveBlockTurn[num]++;
+				}
+			}
+
+			else {
+				if (MoveBlock_X[num] + players[player_code].charPos.X <= 1000) {
+					MoveBlock_X[num] += 1;
+				}
+
+				else {
+					MoveBlockTurn[num]++;
+				}
+			}
+		}*/
+		if (MoveBlockTurn[num] % 2 == 0) {
+			if (MoveBlock_X[num] - players[player_code].charPos.X >= 0) {
+				MoveBlock_X[num] -= 1;
+			}
+
+			else {
+				MoveBlockTurn[num]++;
+			}
+		}
+
+		else {
+			if (MoveBlock_X[num] + players[player_code].charPos.X <= 1000) {
+				MoveBlock_X[num] += 1;
+			}
+
+			else {
+				MoveBlockTurn[num]++;
+			}
 		}
 	}
 }
@@ -265,12 +314,12 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	//맵 위치 파일전송
 	ReadFile(client_sock);
 
-	retval = recv(client_sock, (char*)&Block_X, sizeof(Block_X), MSG_WAITALL);
+	retval = recv(client_sock, (char*)&Block_local[2].x, sizeof(Block_local[2].x), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) {
 		return 1;
 	}
 
-	retval = recv(client_sock, (char*)&Block_W, sizeof(Block_W), MSG_WAITALL);
+	retval = recv(client_sock, (char*)&Block_local[2].width, sizeof(Block_local[2].width), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) {
 		return 1;
 	}
@@ -306,6 +355,13 @@ DWORD WINAPI RecvThread(LPVOID arg)
 			break;
 		}
 
+		retval = recv(client_sock, (char*)&Switch[0], sizeof(Switch[0]), MSG_WAITALL);
+		if (retval == SOCKET_ERROR) {
+			break;
+		}
+
+		EventBlockPos(0, 0);
+
 		MonsterPos(0, 0);
 
 		ProcessPacket(msg, player_code);
@@ -313,6 +369,8 @@ DWORD WINAPI RecvThread(LPVOID arg)
 		Send send_struct;
 		send_struct.MonsterTurn = MonsterTurn[0];
 		send_struct.Monster_X = Monster_X[0];
+		send_struct.MoveBlockTurn = MoveBlockTurn[0];
+		send_struct.MoveBlock_X = MoveBlock_X[0];
 		memcpy(send_struct.players, players, sizeof(players));
 
 		retval = send(client_sock, (char*)&send_struct, sizeof(send_struct), 0);

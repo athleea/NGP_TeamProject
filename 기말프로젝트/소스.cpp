@@ -63,13 +63,18 @@ BYTE player_code;
 static COORD charPos = { 0,0 };
 static int Monster_X[3] = { 0 };
 static int MonsterTurn[3] = { 0 };
-int Block_X = 250;
-int Block_W = 200;
+static int Switch[3] = { 0 };
+static int MoveBlockTurn[3] = { 0 };
+static int MoveBlock_X[3] = { 0 };
+//int Block_X = 250;
+//int Block_W = 200;
 
 typedef struct RecvStruct {
 	PlayerInfo players[MAX_PLAYER];
 	int Monster_X;
 	int MonsterTurn;
+	int MoveBlockTurn;
+	int MoveBlock_X;
 } Recv;
 
 void ReadFile(SOCKET sock)
@@ -153,11 +158,11 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	//맵 위치 파일수신
 	ReadFile(sock);
 
-	retval = send(sock, (char*)&Block_X, sizeof(Block_X), 0);	// 몬스터 초기 좌표 전송, Block_local[2].x 부분 변경 필요
+	retval = send(sock, (char*)&Block_local[2].x, sizeof(Block_local[2].x), 0);	// 몬스터 초기 좌표 전송, Block_local[2].x 부분 변경 필요
 	if (retval == SOCKET_ERROR) {
 		return 1;
 	}
-	retval = send(sock, (char*)&Block_W, sizeof(Block_W), 0);
+	retval = send(sock, (char*)&Block_local[2].width, sizeof(Block_local[2].width), 0);
 	if (retval == SOCKET_ERROR) {
 		return 1;
 	}
@@ -175,6 +180,11 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 			break;
 		}
 
+		retval = send(sock, (char*)&Switch[0], sizeof(Switch[0]), 0);
+		if (retval == SOCKET_ERROR) {
+			break;
+		}
+
 		Recv recv_struct;
 		retval = recv(sock, (char*)&recv_struct, sizeof(recv_struct), 0);
 		if (retval == SOCKET_ERROR) {
@@ -182,8 +192,9 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 		}
 		MonsterTurn[0] = recv_struct.MonsterTurn;
 		Monster_X[0] = recv_struct.Monster_X;
+		MoveBlockTurn[0] = recv_struct.MoveBlockTurn;
+		MoveBlock_X[0] = recv_struct.MoveBlock_X;
 		memcpy(players, recv_struct.players, sizeof(players));
-
 	}
 
 	//Exit
@@ -325,19 +336,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int Key_Image = 1;
 	static int Heart_Click = 0;
 	static int MapNum = 0;
-	static int Switch = 0;
 
 	static int Portal_X = 800;		// Portal 위치 수정 필요
 	static int Portal_Y = -120;
 
-	/*
+	
 	// 이동 블록 테스트용 -> static int로 선언해야 값 변경 반영됨
 	static int Block_localX = 50;
 	Block_local[23].y = 500;
 	Block_local[23].width = 100;
 	static int MoveBlock;	// 방향 변수 -> 짝수일 경우 왼쪽으로 이동, 아닐 경우 오른쪽
 	// 여기 위까지 방해되면 주석 처리 해주세요
-	*/
 	/*
 	static int Monster1_X;	//	아래쪽 몬스터 x좌표
 	static int Monster2_X;	//	위쪽 몬스터 x좌표
@@ -565,26 +574,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		Guide.Draw(mem1dc, 750 - charPos.X, 590 - charPos.Y, w_guide * 2 / 3, h_guide * 2 / 3, 0, 0, w_guide, h_guide);
 		Portal.Draw(mem1dc, Portal_X - charPos.X, Portal_Y - charPos.Y - h_Portal * 1 / 4, w_Portal * 1 / 4, h_Portal * 1 / 4, 0, 0, w_Portal, h_Portal);
 
-		
-		for (int i = 0; i < 23; i++) {
+		Block.Draw(mem1dc, MoveBlock_X[0] - charPos.X, Block_local[0].y - charPos.Y, Block_local[0].width, 60, 0, 0, w_block, h_block);
+
+		for (int i = 1; i < 23; i++) {
 			Block.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);	// 벽돌-
 		}
 		
 		hBitmap2 = CreateCompatibleBitmap(mem1dc, rect.right, rect.bottom);
 		mem2dc = CreateCompatibleDC(mem1dc);
 		SelectObject(mem2dc, hBitmap2);
-
+		
 		Eblock[0].Draw(mem2dc, 600 - charPos.X, 660 - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
 
 		SelectObject(mem1dc, hBitmap);
 
 		if (GetPixel(mem2dc, players[player_code].pos.X + 40, players[player_code].pos.Y + 40) != RGB(254, 0, 0)) {
-			Switch = 0;
+			Switch[0] = 0;
 			Eblock[0].Draw(mem1dc, 600 - charPos.X, 660 - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
 		}
 
 		else if (GetPixel(mem2dc, players[player_code].pos.X + 40, players[player_code].pos.Y) == RGB(254, 0, 0)) {
-			Switch = 1;
+			Switch[0] = 1;
 			Eblock[1].Draw(mem1dc, 600 - charPos.X, 660 - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
 		}
 		/*
