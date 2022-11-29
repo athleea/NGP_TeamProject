@@ -245,6 +245,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	CloseHandle(hKeyInputEvent);
 }
 
+struct ImgSprite {
+	CImage stand[4];
+	CImage run_L[4];
+	CImage run_R[4];
+	CImage jump[4];
+
+	int width_stand[4];
+	int width_run[4];
+	int width_jump[4];
+
+	int height_stand[4];
+	int height_run[4];
+	int height_jump[4];
+};
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -258,16 +272,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static HBITMAP hBitmap, hBitmap2;
 	static CImage BackGround, imgGround;
 
-	static CImage imgSprite1[4], imgSprite1_runR[4], imgSprite1_runL[4], imgSprite1_jump[4];
-	static CImage imgSprite2[4], imgSprite2_runR[4], imgSprite2_runL[4], imgSprite2_jump[4];
-	static CImage imgSprite3[4], imgSprite3_runR[4], imgSprite3_runL[4], imgSprite3_jump[4];
+	static ImgSprite imgSprite[3];
 	static CImage Start, Dialog[6], Guide, Block, Heart, Key, Portal, Clear[2], Guide2, GameOver, Monster_L[4], Monster_R[4], Map, Damage[4], Eblock[2];
 
 	static RECT rect;
 
+	/*
 	static int w_stand[10], h_stand[10];
 	static int w_run[4], h_run[4];
 	static int w_jump[4], h_jump[4];
+	*/
 	static int w1_stand[4], h1_stand[4];
 	static int w1_run[4], h1_run[4];
 	static int w1_jump[4], h1_jump[4];
@@ -302,7 +316,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 	static int CharNum = 1;
 	static int click = 0;
-	static int heart = 3;
 
 	static int Monster1Turn;	//	아래쪽 몬스터, 해당 변수가 짝수인지 홀수인지에 따라 방향 바뀜
 	static int Monster2Turn;	//	위쪽 몬스터
@@ -408,13 +421,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int KillMonster2;
 
 	static int player_code;
+
 	static COORD charPos = { 0,0 };
 	static COORD pos = { 0,0 };
 	static BYTE left = 0;
 	static BYTE right = 0;
 	static bool jump = 0;
 	static int jumpCount = 0;
-
+	static BYTE hp;
 	static int window_left;
 	static int window_bottom;
 	
@@ -427,65 +441,66 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 		Start.Load(L"GameStart.png");
 
-		imgSprite1[0].Load(L"cookie1-stand1.png");
-		imgSprite1[1].Load(L"cookie1-stand1.png");
-		imgSprite1[2].Load(L"cookie1-stand2.png");
-		imgSprite1[3].Load(L"cookie1-stand2.png");
+		imgSprite[0].stand[0].Load(L"cookie1-stand1.png");
+		imgSprite[0].stand[1].Load(L"cookie1-stand1.png");
+		imgSprite[0].stand[2].Load(L"cookie1-stand2.png");
+		imgSprite[0].stand[3].Load(L"cookie1-stand2.png");
+		
+		imgSprite[0].run_L[0].Load(L"cookie1-runL1.png");
+		imgSprite[0].run_L[1].Load(L"cookie1-runL2.png");
+		imgSprite[0].run_L[2].Load(L"cookie1-runL3.png");
+		imgSprite[0].run_L[3].Load(L"cookie1-runL4.png");
 
-		imgSprite1_runL[0].Load(L"cookie1-runL1.png");
-		imgSprite1_runL[1].Load(L"cookie1-runL2.png");
-		imgSprite1_runL[2].Load(L"cookie1-runL3.png");
-		imgSprite1_runL[3].Load(L"cookie1-runL4.png");
+		imgSprite[0].run_R[0].Load(L"cookie1-runR1.png");
+		imgSprite[0].run_R[1].Load(L"cookie1-runR2.png");
+		imgSprite[0].run_R[2].Load(L"cookie1-runR3.png");
+		imgSprite[0].run_R[3].Load(L"cookie1-runR4.png");
 
-		imgSprite1_runR[0].Load(L"cookie1-runR1.png");
-		imgSprite1_runR[1].Load(L"cookie1-runR2.png");
-		imgSprite1_runR[2].Load(L"cookie1-runR3.png");
-		imgSprite1_runR[3].Load(L"cookie1-runR4.png");
+		imgSprite[0].jump[0].Load(L"cookie1-jump1.png");
+		imgSprite[0].jump[1].Load(L"cookie1-jump2.png");
+		imgSprite[0].jump[2].Load(L"cookie1-jump3.png");
+		imgSprite[0].jump[3].Load(L"cookie1-jump4.png");
 
-		imgSprite1_jump[0].Load(L"cookie1-jump1.png");
-		imgSprite1_jump[1].Load(L"cookie1-jump2.png");
-		imgSprite1_jump[2].Load(L"cookie1-jump3.png");
-		imgSprite1_jump[3].Load(L"cookie1-jump4.png");
+		imgSprite[1].stand[0].Load(L"cookie2-stand1.png");
+		imgSprite[1].stand[1].Load(L"cookie2-stand1.png");
+		imgSprite[1].stand[2].Load(L"cookie2-stand2.png");
+		imgSprite[1].stand[3].Load(L"cookie2-stand2.png");
+					 
+		imgSprite[1].run_L[0].Load(L"cookie2-runL1.png");
+		imgSprite[1].run_L[1].Load(L"cookie2-runL2.png");
+		imgSprite[1].run_L[2].Load(L"cookie2-runL3.png");
+		imgSprite[1].run_L[3].Load(L"cookie2-runL4.png");
+					 
+		imgSprite[1].run_R[0].Load(L"cookie2-runR1.png");
+		imgSprite[1].run_R[1].Load(L"cookie2-runR2.png");
+		imgSprite[1].run_R[2].Load(L"cookie2-runR3.png");
+		imgSprite[1].run_R[3].Load(L"cookie2-runR4.png");
+					 
+		imgSprite[1].jump[0].Load(L"cookie2-jump1.png");
+		imgSprite[1].jump[1].Load(L"cookie2-jump2.png");
+		imgSprite[1].jump[2].Load(L"cookie2-jump3.png");
+		imgSprite[1].jump[3].Load(L"cookie2-jump4.png");
 
-		imgSprite2[0].Load(L"cookie2-stand1.png");
-		imgSprite2[1].Load(L"cookie2-stand1.png");
-		imgSprite2[2].Load(L"cookie2-stand2.png");
-		imgSprite2[3].Load(L"cookie2-stand2.png");
+		imgSprite[2].stand[0].Load(L"cookie3-stand1.png");
+		imgSprite[2].stand[1].Load(L"cookie3-stand1.png");
+		imgSprite[2].stand[2].Load(L"cookie3-stand2.png");
+		imgSprite[2].stand[3].Load(L"cookie3-stand2.png");
 
-		imgSprite2_runL[0].Load(L"cookie2-runL1.png");
-		imgSprite2_runL[1].Load(L"cookie2-runL2.png");
-		imgSprite2_runL[2].Load(L"cookie2-runL3.png");
-		imgSprite2_runL[3].Load(L"cookie2-runL4.png");
+		imgSprite[2].run_L[0].Load(L"cookie3-runL1.png");
+		imgSprite[2].run_L[1].Load(L"cookie3-runL2.png");
+		imgSprite[2].run_L[2].Load(L"cookie3-runL3.png");
+		imgSprite[2].run_L[3].Load(L"cookie3-runL4.png");
 
-		imgSprite2_runR[0].Load(L"cookie2-runR1.png");
-		imgSprite2_runR[1].Load(L"cookie2-runR2.png");
-		imgSprite2_runR[2].Load(L"cookie2-runR3.png");
-		imgSprite2_runR[3].Load(L"cookie2-runR4.png");
+		imgSprite[2].run_R[0].Load(L"cookie3-runR1.png");
+		imgSprite[2].run_R[1].Load(L"cookie3-runR2.png");
+		imgSprite[2].run_R[2].Load(L"cookie3-runR3.png");
+		imgSprite[2].run_R[3].Load(L"cookie3-runR4.png");
 
-		imgSprite2_jump[0].Load(L"cookie2-jump1.png");
-		imgSprite2_jump[1].Load(L"cookie2-jump2.png");
-		imgSprite2_jump[2].Load(L"cookie2-jump3.png");
-		imgSprite2_jump[3].Load(L"cookie2-jump4.png");
+		imgSprite[2].jump[0].Load(L"cookie3-jump1.png");
+		imgSprite[2].jump[1].Load(L"cookie3-jump2.png");
+		imgSprite[2].jump[2].Load(L"cookie3-jump3.png");
+		imgSprite[2].jump[3].Load(L"cookie3-jump4.png");
 
-		imgSprite3[0].Load(L"cookie3-stand1.png");
-		imgSprite3[1].Load(L"cookie3-stand1.png");
-		imgSprite3[2].Load(L"cookie3-stand2.png");
-		imgSprite3[3].Load(L"cookie3-stand2.png");
-
-		imgSprite3_runL[0].Load(L"cookie3-runL1.png");
-		imgSprite3_runL[1].Load(L"cookie3-runL2.png");
-		imgSprite3_runL[2].Load(L"cookie3-runL3.png");
-		imgSprite3_runL[3].Load(L"cookie3-runL4.png");
-
-		imgSprite3_runR[0].Load(L"cookie3-runR1.png");
-		imgSprite3_runR[1].Load(L"cookie3-runR2.png");
-		imgSprite3_runR[2].Load(L"cookie3-runR3.png");
-		imgSprite3_runR[3].Load(L"cookie3-runR4.png");
-
-		imgSprite3_jump[0].Load(L"cookie3-jump1.png");
-		imgSprite3_jump[1].Load(L"cookie3-jump2.png");
-		imgSprite3_jump[2].Load(L"cookie3-jump3.png");
-		imgSprite3_jump[3].Load(L"cookie3-jump4.png");
 
 		Monster_L[0].Load(L"monster-L1.png");
 		Monster_L[1].Load(L"monster-L2.png");
@@ -551,32 +566,32 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			w_damage[i] = Damage[i].GetWidth();
 			h_damage[i] = Damage[i].GetHeight();
 
-			w1_stand[i] = imgSprite1[i].GetWidth();
-			h1_stand[i] = imgSprite1[i].GetHeight();
+			imgSprite[0].width_stand[i]	= imgSprite[0].stand[i].GetWidth();
+			imgSprite[0].height_stand[i] = imgSprite[0].stand[i].GetHeight();
 
-			w1_run[i] = imgSprite1_runL[i].GetWidth();
-			h1_run[i] = imgSprite1_runL[i].GetHeight();
+			imgSprite[0].width_run[i] = imgSprite[0].run_L[i].GetWidth();
+			imgSprite[0].height_run[i] = imgSprite[0].run_L[i].GetHeight();
 
-			w1_jump[i] = imgSprite1_jump[i].GetWidth();
-			h1_jump[i] = imgSprite1_jump[i].GetHeight();
+			imgSprite[0].width_jump[i] = imgSprite[0].jump[i].GetWidth();
+			imgSprite[0].height_jump[i] = imgSprite[0].jump[i].GetHeight();
 
-			w2_stand[i] = imgSprite2[i].GetWidth();
-			h2_stand[i] = imgSprite2[i].GetHeight();
+			imgSprite[1].width_stand[i] =  imgSprite[1].stand[i].GetWidth();
+			imgSprite[1].height_stand[i] = imgSprite[1].stand[i].GetHeight();
+						 
+			imgSprite[1].width_run[i] =	imgSprite[1].run_L[i].GetWidth();
+			imgSprite[1].height_run[i] = imgSprite[1].run_L[i].GetHeight();
+						 
+			imgSprite[1].width_jump[i] = imgSprite[1].jump[i].GetWidth();
+			imgSprite[1].height_jump[i] = imgSprite[1].jump[i].GetHeight();
 
-			w2_run[i] = imgSprite2_runL[i].GetWidth();
-			h2_run[i] = imgSprite2_runL[i].GetHeight();
-
-			w2_jump[i] = imgSprite2_jump[i].GetWidth();
-			h2_jump[i] = imgSprite2_jump[i].GetHeight();
-
-			w3_stand[i] = imgSprite3[i].GetWidth();
-			h3_stand[i] = imgSprite3[i].GetHeight();
-
-			w3_run[i] = imgSprite3_runL[i].GetWidth();
-			h3_run[i] = imgSprite3_runL[i].GetHeight();
-
-			w3_jump[i] = imgSprite3_jump[i].GetWidth();
-			h3_jump[i] = imgSprite3_jump[i].GetHeight();
+			imgSprite[2].width_stand[i] = imgSprite[2].stand[i].GetWidth();
+			imgSprite[2].height_stand[i] = imgSprite[2].stand[i].GetHeight();
+						 
+			imgSprite[2].width_run[i] = imgSprite[2].run_L[i].GetWidth();
+			imgSprite[2].height_run[i] = imgSprite[2].run_L[i].GetHeight();
+						 
+			imgSprite[2].width_jump[i] = imgSprite[2].jump[i].GetWidth();
+			imgSprite[2].height_jump[i] = imgSprite[2].jump[i].GetHeight();
 
 			w_monster[i] = Monster_L[i].GetWidth();
 			h_monster[i] = Monster_R[i].GetHeight();
@@ -601,7 +616,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		right = players[player_code].right;
 		jump = players[player_code].jump;
 		jumpCount = players[player_code].jumpCount;
-		
+		hp = players[player_code].hp;
+
 		hdc = BeginPaint(hWnd, &ps);
 
 		if (count != 4) {
@@ -830,26 +846,34 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 */
 		// 내캐릭터 그리기
 		if (left == 0 && right == 0 && jump == 0)
-			imgSprite1[count].Draw(mem1dc, pos.X, pos.Y, w1_stand[count] / 2, h1_stand[count] / 2, 0, 0, w1_stand[count], h1_stand[count]);
+			imgSprite[player_code].stand[count].Draw(mem1dc, pos.X, pos.Y, imgSprite[player_code].width_stand[count] / 2, imgSprite[player_code].height_stand[count] / 2,
+				0, 0, imgSprite[player_code].width_stand[count], imgSprite[player_code].height_stand[count]);
 		else if (jump == 1)
-			imgSprite1_jump[count].Draw(mem1dc, pos.X, pos.Y, w1_jump[count] / 2, h1_jump[count] / 2, 0, 0, w1_jump[count], h1_jump[count]);
+			imgSprite[player_code].jump[count].Draw(mem1dc, pos.X, pos.Y, imgSprite[player_code].width_jump[count] / 2, imgSprite[player_code].height_jump[count] / 2,
+				0, 0, imgSprite[player_code].width_jump[count], imgSprite[player_code].height_jump[count]);
 		else if (left == 1)
-			imgSprite1_runL[count].Draw(mem1dc, pos.X, pos.Y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
+			imgSprite[player_code].run_L[count].Draw(mem1dc, pos.X, pos.Y, imgSprite[player_code].width_run[count] / 2, imgSprite[player_code].height_run[count] / 2,
+				0, 0, imgSprite[player_code].width_run[count], imgSprite[player_code].height_run[count]);
 		else if (right == 1)
-			imgSprite1_runR[count].Draw(mem1dc, pos.X, pos.Y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
+			imgSprite[player_code].run_R[count].Draw(mem1dc, pos.X, pos.Y, imgSprite[player_code].width_run[count] / 2, imgSprite[player_code].height_run[count] / 2,
+				0, 0, imgSprite[player_code].width_run[count], imgSprite[player_code].height_run[count]);
 		
 
 		//다른 캐릭터들 그리기
 		for (int i = 0; i < MAX_PLAYER; ++i) {
 			if (i != player_code) {
 				if (players[i].left == 0 && players[i].right == 0 && players[i].jump == 0)
-					imgSprite1[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, w1_stand[count] / 2, h1_stand[count] / 2, 0, 0, w1_stand[count], h1_stand[count]);
+					imgSprite[i].stand[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, imgSprite[i].width_stand[count] / 2, imgSprite[i].height_stand[count] / 2,
+						0, 0, imgSprite[i].width_stand[count], imgSprite[i].height_stand[count]);
 				else if (players[i].jump == 1) 
-					imgSprite1_jump[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, w1_jump[count] / 2, h1_jump[count] / 2, 0, 0, w1_jump[count], h1_jump[count]);
+					imgSprite[i].jump[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, imgSprite[i].width_jump[count] / 2, imgSprite[i].height_jump[count] / 2,
+						0, 0, imgSprite[i].width_jump[count], imgSprite[i].height_jump[count]);
 				else if(players[i].left == 1)
-					imgSprite1_runL[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
+					imgSprite[i].run_L[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, imgSprite[i].width_run[count] / 2, imgSprite[i].height_run[count] / 2,
+						0, 0, imgSprite[i].width_run[count], imgSprite[i].height_run[count]);
 				else if(players[i].right == 1)
-					imgSprite1_runR[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, w1_run[count] / 2, h1_run[count] / 2, 0, 0, w1_run[count], h1_run[count]);
+					imgSprite[i].run_R[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, imgSprite[i].width_run[count] / 2, imgSprite[i].height_run[count] / 2,
+						0, 0, imgSprite[i].width_run[count], imgSprite[i].height_run[count]);
 			}
 		}
 		
@@ -950,28 +974,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			jumpcount = 10;
 		}
 		*/
-		/*
-		if (click != 0) {
-			if (heart == 3) {
+
+		//if (click != 0) {
+			if (hp == 3) {
 				Heart.Draw(mem1dc, 10, 10, w_heart / 120, h_heart / 120, 0, 0, w_heart, h_heart);
 				Heart.Draw(mem1dc, 20 + w_heart / 120, 10, w_heart / 120, h_heart / 120, 0, 0, w_heart, h_heart);
 				Heart.Draw(mem1dc, 30 + w_heart / 60, 10, w_heart / 120, h_heart / 120, 0, 0, w_heart, h_heart);
 			}
 
-			else if (heart == 2) {
+			else if (hp == 2) {
 				Heart.Draw(mem1dc, 10, 10, w_heart / 120, h_heart / 120, 0, 0, w_heart, h_heart);
 				Heart.Draw(mem1dc, 20 + w_heart / 120, 10, w_heart / 120, h_heart / 120, 0, 0, w_heart, h_heart);
 			}
 
-			else if (heart == 1) {
+			else if (hp == 1) {
 				Heart.Draw(mem1dc, 10, 10, w_heart / 120, h_heart / 120, 0, 0, w_heart, h_heart);
 			}
 
-			else if (heart == 0) {
+			/*else if (hp == 0) {
 				GameOver.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
-			}
-		}
-		*/
+			}*/
+		//}
+		
 		if (MapNum == 1) {
 			Map.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 		}
