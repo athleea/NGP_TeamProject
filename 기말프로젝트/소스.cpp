@@ -25,7 +25,7 @@ LPCTSTR lpszWindowName = L"windows program";
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
 DWORD WINAPI CommunicationThread(LPVOID);
 
-HANDLE hRecvEvent, hRenderEvent, hFileEvent;
+HANDLE hRecvEvent, hRenderEvent, hFileEvent, hKeyInputEvent;
 char buf[BUFSIZE];
 
 struct BLOCK {
@@ -61,6 +61,8 @@ PlayerInfo players[MAX_PLAYER];
 BYTE msg = 0;
 BYTE player_code;
 static COORD charPos = { 0,0 };
+static int Monster_X[3] = { 0 };
+static int MonsterTurn[3] = { 0 };
 
 void ReadFile(SOCKET sock)
 {
@@ -108,9 +110,19 @@ void ReadFile(SOCKET sock)
 	}*/
 }
 
-static int Monster_X[3] = { 0 };
-static int MonsterTurn[3] = { 0 };
+DWORD WINAPI RecvThread(LPVOID arg)
+{
+	int retval = 0;
+	SOCKET sock = (SOCKET)arg;
+	retval = recv(sock, (char*)&player_code, sizeof(player_code), MSG_WAITALL);
+	if (retval == SOCKET_ERROR) return  1;
 
+	while (1) {
+		
+	}
+
+	return 0;
+}
 DWORD WINAPI CommunicationThread(LPVOID arg)
 {
 	WSAData wsa;
@@ -127,10 +139,12 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	serveraddr.sin_port = htons(SERVERPORT);
 	retval = connect(sock, (struct sockaddr*)&serveraddr, sizeof(serveraddr));
 	if (retval == SOCKET_ERROR) return 1;
+
+	HANDLE hThread = CreateThread(NULL, 0, RecvThread, (LPVOID) sock, 0, NULL);
 	
 	//맵 위치 파일수신
 	//ReadFile(sock);
-
+	/*
 	retval = send(sock, (char*)&Block_local[2].x, sizeof(Block_local[2].x), 0);	// 몬스터 초기 좌표 전송, Block_local[2].x 부분 변경 필요
 	if (retval == SOCKET_ERROR) {
 		return 1;
@@ -141,13 +155,15 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 		return 1;
 	}
 	printf("%d\n", Block_local[2].width);
-
+	*/
 	// 캐릭터 코드 및 초기값 받기
-	retval = recv(sock, (char*)&player_code, sizeof(player_code), MSG_WAITALL);
+	/*retval = recv(sock, (char*)&player_code, sizeof(player_code), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) return  1;
-	int value = 0;
+	int value = 0;*/
 
 	while (1) {
+		//WaitForSingleObject(hKeyInputEvent, INFINITE);
+
 		retval = send(sock, (char*)&msg, sizeof(msg), 0);
 		if (retval == SOCKET_ERROR) {
 			break;
@@ -162,20 +178,15 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 		if (retval == SOCKET_ERROR) {
 			break;
 		}*/
-
 		retval = recv(sock, (char*)&players, sizeof(players), MSG_WAITALL);
 		if (retval == SOCKET_ERROR) {
 			break;
 		}
-		retval = recv(sock, (char*)&value, sizeof(int), MSG_WAITALL);
-		if (retval == SOCKET_ERROR) {
-			break;
-		}
 
-		printf("%d\n", value);
 	}
 
 	//Exit
+	CloseHandle(hThread);
 	closesocket(sock);
 	WSACleanup();
 }
@@ -218,6 +229,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	InitializeCriticalSection(&cs);
 
 	hFileEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	hKeyInputEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
 	HANDLE hThread = CreateThread(NULL, 0, CommunicationThread, NULL, 0, NULL);
 	ShowWindow(hWnd, nCmdShow);
@@ -230,6 +242,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	DeleteCriticalSection(&cs);
 	CloseHandle(hThread);
 	CloseHandle(hFileEvent);
+	CloseHandle(hKeyInputEvent);
 }
 
 
@@ -400,8 +413,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static BYTE left = 0;
 	static BYTE right = 0;
 	static bool jump = 0;
-	static int jumpcount = 0;
+	static int jumpCount = 0;
 
+	static int window_left;
+	static int window_bottom;
+	
 	switch (iMsg) {
 	case WM_CREATE:
 		PlaySound(L"start.wav", NULL, SND_ASYNC);
@@ -576,11 +592,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_PAINT:
+		/*window_left = clamp(0, players[player_code].pos.X - 1280 / 2, bw - 1280 - 1);
+		window_bottom = clamp(0, players[player_code].pos.Y - 800 / 2, bh - 800 - 1);*/
+
 		pos = players[player_code].pos;
 		charPos = players[player_code].charPos;
 		left = players[player_code].left;
 		right = players[player_code].right;
 		jump = players[player_code].jump;
+		jumpCount = players[player_code].jumpCount;
 		
 		hdc = BeginPaint(hWnd, &ps);
 
@@ -595,6 +615,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		mem1dc = CreateCompatibleDC(hdc);
 		SelectObject(mem1dc, hBitmap);
 
+		//BackGround.Draw(mem1dc, 0, 0, window_left, window_bottom, 1280, 800, 0, 0);
 		BackGround.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0 + charPos.X, bh - 1600 + charPos.Y, 2560, 1600);
 		imgGround.Draw(mem1dc, 0 - charPos.X, 130 - charPos.Y, rect.right, rect.bottom, 0, 0, gw, gh);
 		imgGround.Draw(mem1dc, rect.right - charPos.X, 130 - charPos.Y, rect.right, rect.bottom, 0, 0, gw, gh);
@@ -985,6 +1006,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_KEYUP:
+		
 		if (wParam == 'A' || wParam == 'a') {
 			msg = CS_KEYUP_A;
 		}
@@ -994,6 +1016,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			msg = CS_KEYUP_D;
 		}
 
+		if (wParam == VK_SPACE) {
+			msg = CS_KEYUP_SPACE;
+		}
 		break;
 	case WM_KEYDOWN:
 		if (wParam == VK_SPACE) {

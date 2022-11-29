@@ -15,10 +15,24 @@
 
 #pragma comment(lib, "ws2_32") // ws2_32.lib 링크
 
+#ifndef max
+#define max(a,b)  (((a) > (b)) ? (a) : (b))
+#endif
+
+#ifndef min
+#define min(a,b)  (((a) < (b)) ? (a) : (b))
+#endif
+
 #define SERVERPORT 9000
 #define BUFSIZE 512
 
 #define MAX_PLAYER 3
+
+int clamp(int minimum, int x, int maximum)
+{
+	int temp = max(minimum, min(x, maximum));
+	return temp;
+}
 
 // 소켓 함수 오류 출력 후 종료
 void err_quit(const char* msg)

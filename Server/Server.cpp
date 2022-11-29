@@ -108,16 +108,26 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 		players[player_code].keyPress_D = false;
 		break;
 	}
+	if (true == players[player_code].jump) {
+		players[player_code].jumpCount++;
+		if (players[player_code].jumpCount < 10)
+			players[player_code].pos.Y -= 15;
+		else if (players[player_code].jumpCount < 19)
+			players[player_code].pos.Y += 15;
+		else if (players[player_code].jumpCount >= 20) {
+			players[player_code].jump = false;
+			players[player_code].jumpCount = 0;
+		}
+	}
 
 	if (true == players[player_code].keyPress_A) {
-		if (players[player_code].pos.X > 10) {			// [임시] 맵 충돌체크
-			players[player_code].pos.X -= 1;		
+		if (players[player_code].pos.X > 10) {			
+			players[player_code].pos.X -= 5 ;
 		}
 		if (players[player_code].charPos.X > 0) {
-			players[player_code].charPos.X -= 3;
+			players[player_code].charPos.X -= 5;
 		}
 		players[player_code].left = 1;
-		players[player_code].right = 0;
 	}
 	else {
 		players[player_code].left = 0;
@@ -125,18 +135,19 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 
 
 	if (true == players[player_code].keyPress_D) {
-		if (players[player_code].pos.X < 1200) { // [임시] 맵 충돌체크
-			players[player_code].pos.X += 1;		
+		if (players[player_code].pos.X < 1200) { 
+			players[player_code].pos.X += 5;
 		}
 		if (players[player_code].charPos.X < 1200) {
-			players[player_code].charPos.X += 3;
+			players[player_code].charPos.X += 5;
 		}
-		players[player_code].left = 0;
 		players[player_code].right = 1;
 	}
 	else {
 		players[player_code].right = 0;
 	}
+
+	
 
 	LeaveCriticalSection(&cs);
 }
@@ -246,7 +257,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	//맵 위치 파일전송
 	//ReadFile(client_sock);
 	//WaitForSingleObject(hFileEvent, INFINITE);
-
+	/*
 	retval = recv(client_sock, (char*)&Block_local[2].x, sizeof(Block_local[2].x), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) {
 		return 1;
@@ -256,7 +267,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	if (retval == SOCKET_ERROR) {
 		return 1;
 	}
-
+	*/
 	// 캐릭터 초기값 설정
 	InitPlayer(player_code);
 
@@ -268,7 +279,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 
 	printf("%d : send_code\n", player_code);
 
-	Monster_X[0] = Block_local[2].x - players[0].charPos.X + Block_local[2].width - 72;
+	//Monster_X[0] = Block_local[2].x - players[0].charPos.X + Block_local[2].width - 72;
 
 	EnterCriticalSection(&cs);
 	ready++;
@@ -279,7 +290,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 
 	//게임 시작
 	printf("%d : gamestart\n", player_code);
-	int value = 1234;
+
 	while (1) {  // 1 -> checkGameEnd()
 		// 키입력 Recv
 		retval = recv(client_sock, (char*)&msg, sizeof(msg), MSG_WAITALL);
@@ -310,11 +321,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 		if (retval == SOCKET_ERROR) {
 			break;
 		}
-
-		retval = send(client_sock, (char*)&value, sizeof(int), 0);
-		if (retval == SOCKET_ERROR) {
-			break;
-		}
+		
 
 		Sleep(10);
 	}
@@ -328,9 +335,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 
 DWORD WINAPI CollisionSendThread(LPVOID arg)
 {
-	
 	printf("enter collsion\n");
-	char restart = 1;
 	int retval;
 	SOCKET client_sock = (SOCKET)arg;
 
@@ -342,7 +347,7 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 		}
 		LeaveCriticalSection(&cs);
 	}
-
+	
 	// 게임 시작
 	SetEvent(gameStartEvent);
 	printf("GameStart \n");
@@ -355,12 +360,10 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 			break;
 		}
 		LeaveCriticalSection(&cs);
-
-		//접속 끊기면 break;
+		
 	}
 	
 	ResetEvent(gameStartEvent);
-	
 	return 0;
 }
 
@@ -397,6 +400,10 @@ int main()
 
 	InitializeCriticalSection(&cs);
 
+	InitPlayer(0);
+	InitPlayer(1);
+	InitPlayer(2);
+
 	while (1) {
 		addrlen = sizeof(clientaddr);
 		client_sock = accept(listen_sock, (struct sockaddr*)&clientaddr, &addrlen);
@@ -409,6 +416,9 @@ int main()
 			if (hThread == NULL) { closesocket(client_sock); }
 			else { CloseHandle(hThread); }
 
+			hThread = CreateThread(NULL, 0, CollisionSendThread, (LPVOID)client_sock, 0, NULL);
+			if (hThread == NULL) { CloseHandle(hThread); }
+
 			EnterCriticalSection(&cs);
 			clientCount++;
 			LeaveCriticalSection(&cs);
@@ -417,10 +427,10 @@ int main()
 			closesocket(client_sock);
 		}
 		
-		if (clientCount == 3) {
+		/*if (clientCount == 3) {
 			hThread = CreateThread(NULL, 0, CollisionSendThread, (LPVOID)client_sock, 0, NULL);
 			if (hThread == NULL) { CloseHandle(hThread); }
-		}
+		}*/
 
 		printf("Access : %d client\n", clientCount);
 	}
