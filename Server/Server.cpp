@@ -16,6 +16,8 @@ int ready = 0;
 bool gameover = false;
 static int Monster_X[3] = { 0 };
 static int MonsterTurn[3] = { 0 };
+int Block_X = 0;
+int Block_W = 0;
 
 class BLOCK {
 public:
@@ -215,23 +217,23 @@ void ReadFile(SOCKET client_sock)
 void MonsterPos(int num, BYTE player_code)
 {
 	if (num == 0) {
-		if (Monster_X[num] < Block_local[2].x || Monster_X[num] + 72 > Block_local[2].x + Block_local[2].width) {
-			if (Monster_X[num] < Block_local[2].x) {
-				Monster_X[num] = Block_local[2].x;
+		if (Monster_X[num] < Block_X - players[player_code].charPos.X || Monster_X[num] + 72 > Block_X - players[player_code].charPos.X + Block_W) {
+			if (Monster_X[num] < Block_X - players[player_code].charPos.X) {
+				Monster_X[num] = Block_X - players[player_code].charPos.X;
 			}
 
-			if (Monster_X[num] + 72 > Block_local[2].x - Block_local[2].width) {
-				Monster_X[num] = Block_local[2].x - Block_local[2].width - 72;
+			if (Monster_X[num] + 72 > Block_X - players[player_code].charPos.X + Block_W) {
+				Monster_X[num] = Block_X - players[player_code].charPos.X + Block_W - 72;
 			}
 			MonsterTurn[num]++;
 		}
 
 		if (MonsterTurn[num] % 2 == 0) {
-			Monster_X[num] -= 5;
+			Monster_X[num] -= 1;
 		}
 
 		else {
-			Monster_X[num] += 5;
+			Monster_X[num] += 1;
 		}
 	}
 }
@@ -257,17 +259,17 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	//맵 위치 파일전송
 	//ReadFile(client_sock);
 	//WaitForSingleObject(hFileEvent, INFINITE);
-	/*
-	retval = recv(client_sock, (char*)&Block_local[2].x, sizeof(Block_local[2].x), MSG_WAITALL);
+	
+	retval = recv(client_sock, (char*)&Block_X, sizeof(Block_X), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) {
 		return 1;
 	}
 
-	retval = recv(client_sock, (char*)&Block_local[2].width, sizeof(Block_local[2].width), MSG_WAITALL);
+	retval = recv(client_sock, (char*)&Block_W, sizeof(Block_W), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) {
 		return 1;
 	}
-	*/
+	
 	// 캐릭터 초기값 설정
 	InitPlayer(player_code);
 
@@ -301,19 +303,19 @@ DWORD WINAPI RecvThread(LPVOID arg)
 			break;
 		}
 
-		//MonsterPos(0, player_code);
+		MonsterPos(0, 0);
 
-		//retval = send(client_sock, (char*)&Monster_X[0], sizeof(Monster_X[0]), 0);
-		//if (retval == SOCKET_ERROR) {
-		//	break;
-		//}
+		retval = send(client_sock, (char*)&Monster_X[0], sizeof(Monster_X[0]), 0);
+		if (retval == SOCKET_ERROR) {
+			break;
+		}
 
-		//printf("Monster_X[0]: %d\n", Monster_X[0]);
+		printf("Monster_X[0]: %d\n", Monster_X[0]);
 
-		//retval = send(client_sock, (char*)&MonsterTurn[0], sizeof(MonsterTurn[0]), 0);
-		//if (retval == SOCKET_ERROR) {
-		//	break;
-		//}
+		retval = send(client_sock, (char*)&MonsterTurn[0], sizeof(MonsterTurn[0]), 0);
+		if (retval == SOCKET_ERROR) {
+			break;
+		}
 
 		ProcessPacket(msg, player_code);
 

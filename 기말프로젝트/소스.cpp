@@ -33,7 +33,7 @@ struct BLOCK {
 	int y;
 	int width;
 
-	void read(ifstream& in) {
+	/*void read(ifstream& in) {
 		int a, b, w;
 		in >> a;
 		in >> b;
@@ -42,7 +42,7 @@ struct BLOCK {
 		x = a;
 		y = b;
 		width = w;
-	}
+	}*/
 };
 static BLOCK Block_local[28];
 
@@ -63,52 +63,54 @@ BYTE player_code;
 static COORD charPos = { 0,0 };
 static int Monster_X[3] = { 0 };
 static int MonsterTurn[3] = { 0 };
+int Block_X = 250;
+int Block_W = 200;
 
-void ReadFile(SOCKET sock)
-{
-	int ret;
-
-	long long f_size;
-	ret = recv(sock, (char*)&f_size, sizeof(f_size), 0);
-	if (ret == SOCKET_ERROR) {
-		err_display("recv()");
-	}
-
-	FILE* ff;
-	ff = fopen("mappos.txt", "wb");
-	if (NULL == ff) {
-		exit(1);
-	}
-	else {
-		memset(buf, 0, BUFSIZE);
-
-		int sum{};
-		while (true) {
-			ret = recv(sock, buf, BUFSIZE, 0);
-			sum += ret;
-
-			fwrite(buf, sizeof(char), ret, ff);
-			memset(buf, 0, BUFSIZE);
-
-			if (f_size <= sum) {
-				//SetEvent(hFileEvent);
-				break;
-			}
-		}
-	}
-	fclose(ff);
-	putchar('\n');
-	printf("File - %s - download complete\n", "mappos.txt");
-
-	ifstream in{ "mappos.txt", ios::binary };
-
-	for (int i = 0; i < BLOCKNUM; ++i) {
-		Block_local[i].read(in);
-	}
-	/*for (int i = 0; i < BLOCKNUM; ++i) {
-		cout << Block_local[i].x  << " " << Block_local[i].y << " " << Block_local[i].width << endl;
-	}*/
-}
+//void ReadFile(SOCKET sock)
+//{
+//	int ret;
+//
+//	long long f_size;
+//	ret = recv(sock, (char*)&f_size, sizeof(f_size), 0);
+//	if (ret == SOCKET_ERROR) {
+//		err_display("recv()");
+//	}
+//
+//	FILE* ff;
+//	ff = fopen("mappos.txt", "wb");
+//	if (NULL == ff) {
+//		exit(1);
+//	}
+//	else {
+//		memset(buf, 0, BUFSIZE);
+//
+//		int sum{};
+//		while (true) {
+//			ret = recv(sock, buf, BUFSIZE, 0);
+//			sum += ret;
+//
+//			fwrite(buf, sizeof(char), ret, ff);
+//			memset(buf, 0, BUFSIZE);
+//
+//			if (f_size <= sum) {
+//				//SetEvent(hFileEvent);
+//				break;
+//			}
+//		}
+//	}
+//	fclose(ff);
+//	putchar('\n');
+//	printf("File - %s - download complete\n", "mappos.txt");
+//
+//	ifstream in{ "mappos.txt", ios::binary };
+//
+//	for (int i = 0; i < BLOCKNUM; ++i) {
+//		Block_local[i].read(in);
+//	}
+//	/*for (int i = 0; i < BLOCKNUM; ++i) {
+//		cout << Block_local[i].x  << " " << Block_local[i].y << " " << Block_local[i].width << endl;
+//	}*/
+//}
 
 DWORD WINAPI RecvThread(LPVOID arg)
 {
@@ -144,18 +146,18 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	
 	//맵 위치 파일수신
 	//ReadFile(sock);
-	/*
-	retval = send(sock, (char*)&Block_local[2].x, sizeof(Block_local[2].x), 0);	// 몬스터 초기 좌표 전송, Block_local[2].x 부분 변경 필요
+	
+	retval = send(sock, (char*)&Block_X, sizeof(Block_X), 0);	// 몬스터 초기 좌표 전송, Block_local[2].x 부분 변경 필요
 	if (retval == SOCKET_ERROR) {
 		return 1;
 	}
 	printf("%d\n", Block_local[2].x);
-	retval = send(sock, (char*)&Block_local[2].width, sizeof(Block_local[2].width), 0);
+	retval = send(sock, (char*)&Block_W, sizeof(Block_W), 0);
 	if (retval == SOCKET_ERROR) {
 		return 1;
 	}
 	printf("%d\n", Block_local[2].width);
-	*/
+	
 	// 캐릭터 코드 및 초기값 받기
 	/*retval = recv(sock, (char*)&player_code, sizeof(player_code), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) return  1;
@@ -169,7 +171,7 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 			break;
 		}
 
-		/*retval = recv(sock, (char*)&Monster_X[0], sizeof(Monster_X[0]), 0);
+		retval = recv(sock, (char*)&Monster_X[0], sizeof(Monster_X[0]), 0);
 		if (retval == SOCKET_ERROR) {
 			break;
 		}
@@ -177,7 +179,7 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 		retval = recv(sock, (char*)&MonsterTurn[0], sizeof(MonsterTurn[0]), 0);
 		if (retval == SOCKET_ERROR) {
 			break;
-		}*/
+		}
 		retval = recv(sock, (char*)&players, sizeof(players), MSG_WAITALL);
 		if (retval == SOCKET_ERROR) {
 			break;
@@ -267,7 +269,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 	COLORREF color;
 
-	//BLOCK Block_local[24] = { 0 };
+	BLOCK Block_local[24] = { 0 };
 
 	static HBITMAP hBitmap, hBitmap2;
 	static CImage BackGround, imgGround;
@@ -334,75 +336,75 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int Portal_Y = -120;
 
 
-	//Block_local[0].x = 150;
-	//Block_local[0].y = 600;
-	//Block_local[0].width = 50;
-	//Block_local[1].x = 250;
-	//Block_local[1].y = 550;
-	//Block_local[1].width = 200;
-	//Block_local[2].x = 500;
-	//Block_local[2].y = 470;
-	//Block_local[2].width = 70;
-	//Block_local[3].x = 700;
-	//Block_local[3].y = 510;
-	//Block_local[3].width = 300;
-	//Block_local[4].x = 1080;
-	//Block_local[4].y = 430;
-	//Block_local[4].width = 300;
-	//Block_local[5].x = 1000;
-	//Block_local[5].y = 330;
-	//Block_local[5].width = 100;
-	//Block_local[6].x = 1150;
-	//Block_local[6].y = 260;
-	//Block_local[6].width = 100;
-	//Block_local[7].x = 1370;	// 여기 몬스터포인트로 하면 될 듯!
-	//Block_local[7].y = 170;
-	//Block_local[7].width = 900;
-	//Block_local[8].x = 1800;
-	//Block_local[8].y = 70;
-	//Block_local[8].width = 100;
-	//Block_local[9].x = 1600;
-	//Block_local[9].y = 0;
-	//Block_local[9].width = 100;
-	//Block_local[10].x = 1400;
-	//Block_local[10].y = -70;
-	//Block_local[10].width = 100;
-	//Block_local[11].x = 500;		// 여기도 큼지막한 블럭이긴 함 아 문을 둘까
-	//Block_local[11].y = -140;
-	//Block_local[11].width = 800;
-	//Block_local[12].x = 0;
-	//Block_local[12].y = -220;
-	//Block_local[12].width = 400;
-	//Block_local[13].x = 500;
-	//Block_local[13].y = -270;
-	//Block_local[13].width = 100;
-	//Block_local[14].x = 670;
-	//Block_local[14].y = -340;
-	//Block_local[14].width = 100;
-	//Block_local[15].x = 850;			// 몬스터 포인트?
-	//Block_local[15].y = -400;
-	//Block_local[15].width = 600;
-	//Block_local[16].x = 1300;
-	//Block_local[16].y = -460;
-	//Block_local[16].width = 100;
-	//Block_local[17].x = 1500;
-	//Block_local[17].y = -530;
-	//Block_local[17].width = 50;
-	//Block_local[18].x = 1650;
-	//Block_local[18].y = -600;
-	//Block_local[18].width = 100;
-	//Block_local[19].x = 1800;
-	//Block_local[19].y = -700;
-	//Block_local[19].width = 400;
-	//Block_local[20].x = 1700;
-	//Block_local[20].y = -770;
-	//Block_local[20].width = 50;
-	//Block_local[21].x = 1500;
-	//Block_local[21].y = -850;
-	//Block_local[21].width = 100;
-	//Block_local[22].x = 1200;
-	//Block_local[22].y = -950;
-	//Block_local[22].width = 150;
+	Block_local[0].x = 150;
+	Block_local[0].y = 600;
+	Block_local[0].width = 50;
+	Block_local[1].x = 250;
+	Block_local[1].y = 550;
+	Block_local[1].width = 200;
+	Block_local[2].x = 500;
+	Block_local[2].y = 470;
+	Block_local[2].width = 70;
+	Block_local[3].x = 700;
+	Block_local[3].y = 510;
+	Block_local[3].width = 300;
+	Block_local[4].x = 1080;
+	Block_local[4].y = 430;
+	Block_local[4].width = 300;
+	Block_local[5].x = 1000;
+	Block_local[5].y = 330;
+	Block_local[5].width = 100;
+	Block_local[6].x = 1150;
+	Block_local[6].y = 260;
+	Block_local[6].width = 100;
+	Block_local[7].x = 1370;	// 여기 몬스터포인트로 하면 될 듯!
+	Block_local[7].y = 170;
+	Block_local[7].width = 900;
+	Block_local[8].x = 1800;
+	Block_local[8].y = 70;
+	Block_local[8].width = 100;
+	Block_local[9].x = 1600;
+	Block_local[9].y = 0;
+	Block_local[9].width = 100;
+	Block_local[10].x = 1400;
+	Block_local[10].y = -70;
+	Block_local[10].width = 100;
+	Block_local[11].x = 500;		// 여기도 큼지막한 블럭이긴 함 아 문을 둘까
+	Block_local[11].y = -140;
+	Block_local[11].width = 800;
+	Block_local[12].x = 0;
+	Block_local[12].y = -220;
+	Block_local[12].width = 400;
+	Block_local[13].x = 500;
+	Block_local[13].y = -270;
+	Block_local[13].width = 100;
+	Block_local[14].x = 670;
+	Block_local[14].y = -340;
+	Block_local[14].width = 100;
+	Block_local[15].x = 850;			// 몬스터 포인트?
+	Block_local[15].y = -400;
+	Block_local[15].width = 600;
+	Block_local[16].x = 1300;
+	Block_local[16].y = -460;
+	Block_local[16].width = 100;
+	Block_local[17].x = 1500;
+	Block_local[17].y = -530;
+	Block_local[17].width = 50;
+	Block_local[18].x = 1650;
+	Block_local[18].y = -600;
+	Block_local[18].width = 100;
+	Block_local[19].x = 1800;
+	Block_local[19].y = -700;
+	Block_local[19].width = 400;
+	Block_local[20].x = 1700;
+	Block_local[20].y = -770;
+	Block_local[20].width = 50;
+	Block_local[21].x = 1500;
+	Block_local[21].y = -850;
+	Block_local[21].width = 100;
+	Block_local[22].x = 1200;
+	Block_local[22].y = -950;
+	Block_local[22].width = 150;
 
 	/*
 	// 이동 블록 테스트용 -> static int로 선언해야 값 변경 반영됨
@@ -597,10 +599,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			h_monster[i] = Monster_R[i].GetHeight();
 		}
 
-		/*
-		Monster1_X = Block_local[2].x - charPos.X + Block_local[2].width - 72;
-		Monster2_X = Block_local[15].x - charPos.X;
-		*/
+		
+		/*Monster1_X = Block_local[2].x - charPos.X + Block_local[2].width - 72;
+		Monster2_X = Block_local[15].x - charPos.X;*/
+		
 
 		SetTimer(hWnd, 0, 50, NULL);
 
@@ -639,11 +641,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		Guide.Draw(mem1dc, 750 - charPos.X, 590 - charPos.Y, w_guide * 2 / 3, h_guide * 2 / 3, 0, 0, w_guide, h_guide);
 		Portal.Draw(mem1dc, Portal_X - charPos.X, Portal_Y - charPos.Y - h_Portal * 1 / 4, w_Portal * 1 / 4, h_Portal * 1 / 4, 0, 0, w_Portal, h_Portal);
 
-		/*
-		for (int i = 0; i < BLOCKNUM; i++) {
+		
+		for (int i = 0; i < 23; i++) {
 			Block.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);	// 벽돌-
 		}
-		*/
+		
 		//블록 28개까지
 		//Block.Draw(mem1dc, Block_localX - charPos.X, Block_local[23].y - charPos.Y, Block_local[23].width, 60, 0, 0, w_block, h_block);
 		hBitmap2 = CreateCompatibleBitmap(mem1dc, rect.right, rect.bottom);
@@ -688,7 +690,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		}
 		*/
 		//	몬스터가 블록 왼쪽, 오른쪽 끝에 도달하면 방향 바꾸는 코드
-		/*
+		
 		if (KillMonster1 == 0) {
 			if (MonsterTurn[0] % 2 == 0) {
 				Monster_L[count].Draw(mem1dc, Monster_X[0], Block_local[2].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
@@ -698,7 +700,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				Monster_R[count].Draw(mem1dc, Monster_X[0], Block_local[2].y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
 			}
 		}
-		*/
+		
 		/*if (KillMonster1 == 0) {
 			if (Monster1_X < Block_local[2].x - charPos.X || Monster1_X + w_monster[count] / 2 > Block_local[2].x - charPos.X + Block_local[2].width) {
 				if (Monster1_X < Block_local[2].x - charPos.X) {
