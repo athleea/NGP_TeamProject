@@ -150,18 +150,18 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 		if (retval == SOCKET_ERROR) {
 			break;
 		}
-
-		retval = recv(sock, (char*)&players, sizeof(players), MSG_WAITALL);
-		if (retval == SOCKET_ERROR) {
-			break;
-		}
-
-		retval = recv(sock, (char*)&Monster_X[0], sizeof(Monster_X[0]), 0);
+		/*retval = recv(sock, (char*)&Monster_X[0], sizeof(Monster_X[0]), 0);
 		if (retval == SOCKET_ERROR) {
 			break;
 		}
 
 		retval = recv(sock, (char*)&MonsterTurn[0], sizeof(MonsterTurn[0]), 0);
+		if (retval == SOCKET_ERROR) {
+			break;
+		}*/
+		
+
+		retval = recv(sock, (char*)&players, sizeof(players), MSG_WAITALL);
 		if (retval == SOCKET_ERROR) {
 			break;
 		}

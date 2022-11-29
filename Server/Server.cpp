@@ -111,10 +111,10 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 
 	if (true == players[player_code].keyPress_A) {
 		if (players[player_code].pos.X > 10) {			// [임시] 맵 충돌체크
-			players[player_code].pos.X -= 3;		
+			players[player_code].pos.X -= 1;		
 		}
 		if (players[player_code].charPos.X > 0) {
-			players[player_code].charPos.X -= 5;
+			players[player_code].charPos.X -= 3;
 		}
 		players[player_code].left = 1;
 		players[player_code].right = 0;
@@ -126,10 +126,10 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 
 	if (true == players[player_code].keyPress_D) {
 		if (players[player_code].pos.X < 1200) { // [임시] 맵 충돌체크
-			players[player_code].pos.X += 3;		
+			players[player_code].pos.X += 1;		
 		}
 		if (players[player_code].charPos.X < 1200) {
-			players[player_code].charPos.X += 5;
+			players[player_code].charPos.X += 3;
 		}
 		players[player_code].left = 0;
 		players[player_code].right = 1;
@@ -290,8 +290,29 @@ DWORD WINAPI RecvThread(LPVOID arg)
 		else if (retval == 0) {
 			break;
 		}
-		
+
+		//MonsterPos(0, player_code);
+
+		//retval = send(client_sock, (char*)&Monster_X[0], sizeof(Monster_X[0]), 0);
+		//if (retval == SOCKET_ERROR) {
+		//	break;
+		//}
+
+		//printf("Monster_X[0]: %d\n", Monster_X[0]);
+
+		//retval = send(client_sock, (char*)&MonsterTurn[0], sizeof(MonsterTurn[0]), 0);
+		//if (retval == SOCKET_ERROR) {
+		//	break;
+		//}
+
 		ProcessPacket(msg, player_code);
+
+		retval = send(client_sock, (char*)&players, sizeof(players), 0);
+		if (retval == SOCKET_ERROR) {
+			break;
+		}
+
+		Sleep(10);
 	}
 
 	ResetEvent(gameStartEvent);
@@ -330,34 +351,7 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 		}
 		LeaveCriticalSection(&cs);
 
-		for (int i = 0; i < MAX_PLAYER; i++)
-		{
-			EnterCriticalSection(&cs);
-			retval = send(sockManager[i], (char*)&players, sizeof(players), 0);
-			if (retval == SOCKET_ERROR) {
-				flag = true;
-				LeaveCriticalSection(&cs);
-				break;
-			}
-
-			LeaveCriticalSection(&cs);
-
-			MonsterPos(0, i);
-
-			retval = send(client_sock, (char*)&Monster_X[0], sizeof(Monster_X[0]), 0);
-			if (retval == SOCKET_ERROR) {
-				break;
-			}
-
-			printf("Monster_X[0]: %d\n", Monster_X[0]);
-
-			retval = send(client_sock, (char*)&MonsterTurn[0], sizeof(MonsterTurn[0]), 0);
-			if (retval == SOCKET_ERROR) {
-				break;
-			}
-		}
-
-		Sleep(10);
+		//접속 끊기면 break;
 	}
 
 	ResetEvent(gameStartEvent);
@@ -404,13 +398,14 @@ int main()
 			//err_display("accept()");
 			break;
 		}
-		EnterCriticalSection(&cs);
 		if (clientCount < 3) {
 			hThread = CreateThread(NULL, 0, RecvThread, (LPVOID)client_sock, 0, NULL);
 			if (hThread == NULL) { closesocket(client_sock); }
 			else { CloseHandle(hThread); }
 
+			EnterCriticalSection(&cs);
 			clientCount++;
+			LeaveCriticalSection(&cs);
 		}
 		else if(clientCount > 3) {
 			closesocket(client_sock);
@@ -420,7 +415,6 @@ int main()
 			hThread = CreateThread(NULL, 0, CollisionSendThread, (LPVOID)client_sock, 0, NULL);
 			if (hThread == NULL) { CloseHandle(hThread); }
 		}
-		LeaveCriticalSection(&cs);
 
 		printf("Access : %d client\n", clientCount);
 	}
