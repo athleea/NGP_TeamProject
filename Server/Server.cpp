@@ -416,9 +416,6 @@ int main()
 			if (hThread == NULL) { closesocket(client_sock); }
 			else { CloseHandle(hThread); }
 
-			hThread = CreateThread(NULL, 0, CollisionSendThread, (LPVOID)client_sock, 0, NULL);
-			if (hThread == NULL) { CloseHandle(hThread); }
-
 			EnterCriticalSection(&cs);
 			clientCount++;
 			LeaveCriticalSection(&cs);
@@ -427,10 +424,10 @@ int main()
 			closesocket(client_sock);
 		}
 		
-		/*if (clientCount == 3) {
+		if (clientCount == 3) {
 			hThread = CreateThread(NULL, 0, CollisionSendThread, (LPVOID)client_sock, 0, NULL);
 			if (hThread == NULL) { CloseHandle(hThread); }
-		}*/
+		}
 
 		printf("Access : %d client\n", clientCount);
 	}
