@@ -185,6 +185,10 @@ void ReadFile(SOCKET client_sock)
 	retval = send(client_sock, (char*)&f_size, sizeof(f_size), 0);
 	if (retval == SOCKET_ERROR) {
 		err_display("send()");
+		EnterCriticalSection(&cs);
+		clientCount--;
+		LeaveCriticalSection(&cs);
+		return;
 	}
 
 	fseek(ff, 0, SEEK_SET);
@@ -197,7 +201,10 @@ void ReadFile(SOCKET client_sock)
 			retval = send(client_sock, buf, sizeof(buf), 0);
 			if (retval == SOCKET_ERROR) {
 				printf("Send Failed\n");
-				exit(1);
+				EnterCriticalSection(&cs);
+				clientCount--;
+				LeaveCriticalSection(&cs);
+				return;
 			}
 			memset(buf, 0, BUFSIZE);
 		}
@@ -205,7 +212,10 @@ void ReadFile(SOCKET client_sock)
 		printf("%d", retval);
 		if (retval == SOCKET_ERROR) {
 			printf("Send Failed\n");
-			exit(1);
+			EnterCriticalSection(&cs);
+			clientCount--;
+			LeaveCriticalSection(&cs);
+			return;
 		}
 		fclose(ff);
 		printf("File - %s - Send complete\n", "mappos.txt");
@@ -316,11 +326,19 @@ DWORD WINAPI RecvThread(LPVOID arg)
 
 	retval = recv(client_sock, (char*)&Block_local[2].x, sizeof(Block_local[2].x), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) {
+		EnterCriticalSection(&cs);
+		clientCount--;
+		LeaveCriticalSection(&cs);
+
 		return 1;
 	}
 
 	retval = recv(client_sock, (char*)&Block_local[2].width, sizeof(Block_local[2].width), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) {
+		EnterCriticalSection(&cs);
+		clientCount--;
+		LeaveCriticalSection(&cs);
+
 		return 1;
 	}
 	

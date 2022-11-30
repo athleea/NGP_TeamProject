@@ -1,2 +1,3 @@
 C:\Project\NGP_TeamProject\Server\x64\Release\Server.exe
 D:\NGP_TeamProject\Server\x64\Release\Server.exe
+C:\Users\KYW\Documents\GitHub\NGP_TeamProject\Server\x64\Release\Server.exe

@@ -16,6 +16,7 @@
 #include "Protocol.h"
 
 #define SERVERIP "127.0.0.1"
+//#define SERVERIP "192.168.182.213"
 #define BLOCKNUM 23
 using namespace std;
 
@@ -977,33 +978,47 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	case WM_KEYUP:
 		
 		if (wParam == 'A' || wParam == 'a') {
+			EnterCriticalSection(&cs);
 			msg = CS_KEYUP_A;
+			LeaveCriticalSection(&cs);
 		}
 
 
 		if (wParam == 'D' || wParam == 'd') {
+			EnterCriticalSection(&cs);
 			msg = CS_KEYUP_D;
+			LeaveCriticalSection(&cs);
 		}
 
 		if (wParam == VK_SPACE) {
+			EnterCriticalSection(&cs);
 			msg = CS_KEYUP_SPACE;
+			LeaveCriticalSection(&cs);
 		}
 		break;
 	case WM_KEYDOWN:
 		if (wParam == VK_SPACE) {
+			EnterCriticalSection(&cs);
 			msg = CS_KEYDOWN_SPACE;
+			LeaveCriticalSection(&cs);
 		}
 
 		if (wParam == 'A' || wParam == 'a') {
+			EnterCriticalSection(&cs);
 			msg = CS_KEYDOWN_A;
+			LeaveCriticalSection(&cs);
 		}
 
 
 		if (wParam == 'D' || wParam == 'd') {
+			EnterCriticalSection(&cs);
 			msg = CS_KEYDOWN_D;
+			LeaveCriticalSection(&cs);
 		}
 		if (wParam == 'W' || wParam == 'w') {
+			EnterCriticalSection(&cs);
 			msg = CS_KEYDOWN_W;
+			LeaveCriticalSection(&cs);
 		}
 
 		/*
