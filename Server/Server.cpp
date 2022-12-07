@@ -108,6 +108,13 @@ BYTE RandomCharacter()
 	return temp;
 }
 
+int clamp(int min, int value, int max)
+{
+	if (value <= min) return min;
+	else if (value >= max) return max;
+	else return value;
+}
+
 void ProcessPacket(BYTE msg, BYTE player_code)
 {
 	EnterCriticalSection(&cs);
@@ -130,6 +137,7 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 		players[player_code].keyPress_D = false;
 		break;
 	}
+
 	if (true == players[player_code].jump) {
 		players[player_code].jumpCount++;
 		if (players[player_code].jumpCount < 10)
@@ -146,22 +154,15 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 		if (players[player_code].pos.X > 10) {			
 			players[player_code].pos.X -= 5 ;
 		}
-		if (players[player_code].charPos.X > 0) {
-			players[player_code].charPos.X -= 5;
-		}
 		players[player_code].left = 1;
 	}
 	else {
 		players[player_code].left = 0;
 	}
 
-
 	if (true == players[player_code].keyPress_D) {
-		if (players[player_code].pos.X < 1900) { 
+		if (players[player_code].pos.X < 2400) { 
 			players[player_code].pos.X += 5;
-		}
-		if (players[player_code].charPos.X < 800) {
-			players[player_code].charPos.X += 5;
 		}
 		players[player_code].right = 1;
 	}
@@ -169,7 +170,8 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 		players[player_code].right = 0;
 	}
 
-	
+	players[player_code].charPos.X = clamp(0, players[player_code].pos.X - 640, 1280);
+	players[player_code].charPos.Y = clamp(-1200, players[player_code].pos.Y - 620, 620);
 
 	LeaveCriticalSection(&cs);
 }
@@ -382,7 +384,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 
 
 	// 3명 접속까지 대기
-	WaitForSingleObject(gameStartEvent, INFINITE);
+	//WaitForSingleObject(gameStartEvent, INFINITE);
 
 	bool gamestart = true;
 	retval = send(client_sock, (char*)&gamestart, sizeof(gamestart), 0);

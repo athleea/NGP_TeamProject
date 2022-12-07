@@ -562,7 +562,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			jumpCount = players[player_code].jumpCount;
 			hp = players[player_code].hp;
 
-			printf("[%d] : (%d, %d) \r", player_code, pos.X, charPos.X);
+			//printf("[%d] : (%d, %d) \r", player_code, pos.X, charPos.X);
 
 			if (count != 4) {
 				count++;
@@ -570,10 +570,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			if (count == 4) {
 				count = 0;
 			}
-
+			printf("%d\r", pos.X);
 			BackGround.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0 + charPos.X, bh - 1600 + charPos.Y, 2560, 1600);
-			imgGround.Draw(mem1dc, 0 - charPos.X, 100 - charPos.Y);
-			imgGround.Draw(mem1dc, rect.right - charPos.X, 100 - charPos.Y);
+			imgGround.Draw(mem1dc, 0 - charPos.X, 130 - charPos.Y, rect.right, rect.bottom, 0, 0, gw, gh);
+			imgGround.Draw(mem1dc, rect.right - charPos.X, 130 - charPos.Y, rect.right, rect.bottom, 0, 0, gw, gh);
 
 			Guide.Draw(mem1dc, 750 - charPos.X, 590 - charPos.Y, w_guide * 2 / 3, h_guide * 2 / 3, 0, 0, w_guide, h_guide);
 			Portal.Draw(mem1dc, Portal_X - charPos.X, Portal_Y - charPos.Y - h_Portal * 1 / 4, w_Portal * 1 / 4, h_Portal * 1 / 4, 0, 0, w_Portal, h_Portal);
