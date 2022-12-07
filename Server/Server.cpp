@@ -61,8 +61,8 @@ typedef struct SendStruct {
 	int MoveBlock_X;
 } Send;
 
-void InitPlayer(int player_code);
-void InitPlayer(int player_code)
+void InitPlayer(BYTE player_code);
+void InitPlayer(BYTE player_code)
 {
 	if (player_code == 0)
 		players[player_code].pos = { 30, 620 };
@@ -163,7 +163,7 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 	LeaveCriticalSection(&cs);
 }
 
-void ReadFile(SOCKET client_sock)
+void SendFile(SOCKET client_sock)
 {
 	int retval;
 	char buf[BUFSIZE];
@@ -181,7 +181,6 @@ void ReadFile(SOCKET client_sock)
 	f_size = ftell(ff);
 
 	// 데이터 보내기(고정 길이)
-
 	retval = send(client_sock, (char*)&f_size, sizeof(f_size), 0);
 	if (retval == SOCKET_ERROR) {
 		err_display("send()");
@@ -197,8 +196,13 @@ void ReadFile(SOCKET client_sock)
 	else {
 		memset(buf, 0, BUFSIZE);
 
-		while (fread(buf, sizeof(char), BUFSIZE, ff) > 0) {
-			retval = send(client_sock, buf, sizeof(buf), 0);
+		while (1) {
+			int read_length = fread(buf, sizeof(char), BUFSIZE, ff);
+			if (read_length <= 0)
+				break;
+
+			retval = send(client_sock, buf, read_length, 0);
+			printf("send_file : %d\n", retval);
 			if (retval == SOCKET_ERROR) {
 				printf("Send Failed\n");
 				EnterCriticalSection(&cs);
@@ -207,20 +211,12 @@ void ReadFile(SOCKET client_sock)
 				return;
 			}
 			memset(buf, 0, BUFSIZE);
-		}
-		retval = send(client_sock, buf, sizeof(buf), 0);
-		printf("%d", retval);
-		if (retval == SOCKET_ERROR) {
-			printf("Send Failed\n");
-			EnterCriticalSection(&cs);
-			clientCount--;
-			LeaveCriticalSection(&cs);
-			return;
+
 		}
 		fclose(ff);
 		printf("File - %s - Send complete\n", "mappos.txt");
 	}
-
+	
 	//맵 파일 읽어서 변수에 위치 저장
 	vector<BLOCK> v{28};
 
@@ -322,7 +318,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	sockManager[player_code] = client_sock;
 
 	//맵 위치 파일전송
-	ReadFile(client_sock);
+	SendFile(client_sock);
 
 	retval = recv(client_sock, (char*)&Block_local[2].x, sizeof(Block_local[2].x), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) {
@@ -345,11 +341,14 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	// 캐릭터 초기값 설정
 	InitPlayer(player_code);
 
-	/*retval = send(client_sock, (char*)&player_code, sizeof(player_code), 0);
+	retval = send(client_sock, (char*)&player_code, sizeof(player_code), 0);
 	if (retval == SOCKET_ERROR) {
+		EnterCriticalSection(&cs);
 		clientCount--;
+		LeaveCriticalSection(&cs);
 		return 1;
-	}*/
+	}
+
 
 	printf("%d : send_code\n", player_code);
 
@@ -357,11 +356,33 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	ready++;
 	LeaveCriticalSection(&cs);
 
-	
-	WaitForSingleObject(gameStartEvent, INFINITE);
+	//WaitForSingleObject(gameStartEvent, INFINITE);
 
+	Send send_struct;
+	send_struct.MonsterTurn = MonsterTurn[0];
+	send_struct.Monster_X = Monster_X[0];
+	send_struct.MoveBlockTurn = MoveBlockTurn[0];
+	send_struct.MoveBlock_X = MoveBlock_X[0];
+	memcpy(send_struct.players, players, sizeof(players));
+
+	retval = send(client_sock, (char*)&send_struct, sizeof(send_struct), 0);
+	if (retval == SOCKET_ERROR) {
+		EnterCriticalSection(&cs);
+		clientCount--;
+		LeaveCriticalSection(&cs);
+		return 1;
+	}
+
+	bool gamestart = true;
+	retval = send(client_sock, (char*)&gamestart, sizeof(gamestart), 0);
+	if (retval == SOCKET_ERROR) {
+		EnterCriticalSection(&cs);
+		clientCount--;
+		LeaveCriticalSection(&cs);
+		return 1;
+	}
 	//게임 시작
-	printf("%d : gamestart\n", player_code);
+	printf("%d : gamestart\n", gamestart);
 
 	while (1) {  // 1 -> checkGameEnd()
 		// 키입력 Recv
@@ -384,7 +405,6 @@ DWORD WINAPI RecvThread(LPVOID arg)
 
 		ProcessPacket(msg, player_code);
 
-		Send send_struct;
 		send_struct.MonsterTurn = MonsterTurn[0];
 		send_struct.Monster_X = Monster_X[0];
 		send_struct.MoveBlockTurn = MoveBlockTurn[0];
