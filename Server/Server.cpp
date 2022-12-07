@@ -8,7 +8,7 @@ using namespace std;
 int clientCount = 0;
 FILE* fp;
 
-HANDLE gameStartEvent, hFileEvent;
+HANDLE gameStartEvent;
 CRITICAL_SECTION cs;
 SOCKET sockManager[MAX_PLAYER];
 
@@ -61,6 +61,17 @@ typedef struct SendStruct {
 	int MoveBlock_X;
 } Send;
 
+void CheckGameEnd();
+void CheckGameEnd()
+{
+	for (int i = 0; i < MAX_PLAYER; ++i)
+		if (players[i].hp <= 0) {
+			EnterCriticalSection(&cs);
+			gameover = true;
+			LeaveCriticalSection(&cs);
+			return;
+		}
+}
 void InitPlayer(BYTE player_code);
 void InitPlayer(BYTE player_code)
 {
@@ -146,10 +157,10 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 
 
 	if (true == players[player_code].keyPress_D) {
-		if (players[player_code].pos.X < 1200) { 
+		if (players[player_code].pos.X < 1900) { 
 			players[player_code].pos.X += 5;
 		}
-		if (players[player_code].charPos.X < 1200) {
+		if (players[player_code].charPos.X < 800) {
 			players[player_code].charPos.X += 5;
 		}
 		players[player_code].right = 1;
@@ -232,7 +243,7 @@ void SendFile(SOCKET client_sock)
 void MonsterPos(int num, BYTE player_code)
 {
 	if (num == 0) {
-		if (Monster_X[num] < Block_local[2].x - players[player_code].charPos.X || Monster_X[num] + 72 > Block_local[2].x - players[player_code].charPos.X + Block_local[2].width) {
+		if (Monster_X[num] < Block_local[2].x || Monster_X[num] + 72 > Block_local[2].x - players[player_code].charPos.X + Block_local[2].width) {
 			if (Monster_X[num] < Block_local[2].x - players[player_code].charPos.X) {
 				Monster_X[num] = Block_local[2].x - players[player_code].charPos.X;
 			}
@@ -349,15 +360,6 @@ DWORD WINAPI RecvThread(LPVOID arg)
 		return 1;
 	}
 
-
-	printf("%d : send_code\n", player_code);
-
-	EnterCriticalSection(&cs);
-	ready++;
-	LeaveCriticalSection(&cs);
-
-	//WaitForSingleObject(gameStartEvent, INFINITE);
-
 	Send send_struct;
 	send_struct.MonsterTurn = MonsterTurn[0];
 	send_struct.Monster_X = Monster_X[0];
@@ -373,6 +375,15 @@ DWORD WINAPI RecvThread(LPVOID arg)
 		return 1;
 	}
 
+
+	EnterCriticalSection(&cs);
+	ready++;
+	LeaveCriticalSection(&cs);
+
+
+	// 3명 접속까지 대기
+	WaitForSingleObject(gameStartEvent, INFINITE);
+
 	bool gamestart = true;
 	retval = send(client_sock, (char*)&gamestart, sizeof(gamestart), 0);
 	if (retval == SOCKET_ERROR) {
@@ -384,7 +395,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	//게임 시작
 	printf("%d : gamestart\n", gamestart);
 
-	while (1) {  // 1 -> checkGameEnd()
+	while (false == gameover) {  // 1 -> checkGameEnd()
 		// 키입력 Recv
 		retval = recv(client_sock, (char*)&msg, sizeof(msg), MSG_WAITALL);
 		if (retval == SOCKET_ERROR) {
@@ -399,10 +410,6 @@ DWORD WINAPI RecvThread(LPVOID arg)
 			break;
 		}
 
-		EventBlockPos(0, 0);
-
-		MonsterPos(0, 0);
-
 		ProcessPacket(msg, player_code);
 
 		send_struct.MonsterTurn = MonsterTurn[0];
@@ -416,9 +423,11 @@ DWORD WINAPI RecvThread(LPVOID arg)
 			break;
 		}
 		//printf("Monster_X[0]: %d\n", Monster_X[0]);
-
+		
 		Sleep(10);
 	}
+
+	retval = send(client_sock, (char*)&gameover, sizeof(gameover), 0);
 
 	ResetEvent(gameStartEvent);
 	EnterCriticalSection(&cs);
@@ -447,6 +456,10 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 	printf("GameStart \n");
 	bool flag = false;
 
+	EnterCriticalSection(&cs);
+	gameover = false;
+	LeaveCriticalSection(&cs);
+
 	while (false == flag) { // CheckGameEnd()
 		EnterCriticalSection(&cs);
 		if (clientCount != 3) {
@@ -454,7 +467,13 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 			break;
 		}
 		LeaveCriticalSection(&cs);
-		
+
+		EventBlockPos(0, 0);
+		MonsterPos(0, 0);
+
+		CheckGameEnd();
+
+		Sleep(10);
 	}
 	
 	ResetEvent(gameStartEvent);
@@ -490,7 +509,6 @@ int main()
 	int addrlen;
 
 	gameStartEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-	hFileEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
 	InitializeCriticalSection(&cs);
 
@@ -530,7 +548,6 @@ int main()
 	closesocket(client_sock);
 
 	CloseHandle(gameStartEvent);
-	CloseHandle(hFileEvent);
 
 	DeleteCriticalSection(&cs);
 	WSACleanup();

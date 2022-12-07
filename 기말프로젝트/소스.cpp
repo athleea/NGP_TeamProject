@@ -69,6 +69,7 @@ static int MoveBlockTurn[3] = { 0 };
 static int MoveBlock_X[3] = { 0 };
 
 bool gamestart = false;
+bool gameover = false;
 
 //int Block_X = 250;
 //int Block_W = 200;
@@ -185,7 +186,7 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	printf("code : %d\n", player_code);
 
 
-	while (1) {
+	while (gameover == false) {
 		retval = send(sock, (char*)&msg, sizeof(msg), 0);
 		if (retval == SOCKET_ERROR) {
 			break;
@@ -206,6 +207,8 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 		MoveBlock_X[0] = recv_struct.MoveBlock_X;
 		memcpy(players, recv_struct.players, sizeof(players));
 	}
+
+	retval = recv(sock, (char*)&gameover, sizeof(gameover), MSG_WAITALL);
 
 	//Exit
 	closesocket(sock);
@@ -540,7 +543,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	case WM_PAINT:
 		hdc = BeginPaint(hWnd, &ps);
 
-		if (gamestart == true) {
+		hBitmap = CreateCompatibleBitmap(hdc, rect.right, rect.bottom);
+		mem1dc = CreateCompatibleDC(hdc);
+
+		hBitmap2 = CreateCompatibleBitmap(mem1dc, rect.right, rect.bottom);
+		mem2dc = CreateCompatibleDC(mem1dc);
+
+		SelectObject(mem1dc, hBitmap);
+
+		if (gamestart == false)
+			Start.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
+		else if (gamestart == true) {
 			pos = players[player_code].pos;
 			charPos = players[player_code].charPos;
 			left = players[player_code].left;
@@ -549,7 +562,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			jumpCount = players[player_code].jumpCount;
 			hp = players[player_code].hp;
 
-			printf("%d\r", player_code);
+			printf("[%d] : (%d, %d) \r", player_code, pos.X, charPos.X);
 
 			if (count != 4) {
 				count++;
@@ -558,11 +571,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				count = 0;
 			}
 
-			hBitmap = CreateCompatibleBitmap(hdc, rect.right, rect.bottom);
-			mem1dc = CreateCompatibleDC(hdc);
-			SelectObject(mem1dc, hBitmap);
-
-			//BackGround.Draw(mem1dc, 0, 0, window_left, window_bottom, 1280, 800, 0, 0);
 			BackGround.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0 + charPos.X, bh - 1600 + charPos.Y, 2560, 1600);
 			imgGround.Draw(mem1dc, 0 - charPos.X, 100 - charPos.Y);
 			imgGround.Draw(mem1dc, rect.right - charPos.X, 100 - charPos.Y);
@@ -584,13 +592,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 					Blocko.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
 			}
 			
-			hBitmap2 = CreateCompatibleBitmap(mem1dc, rect.right, rect.bottom);
-			mem2dc = CreateCompatibleDC(mem1dc);
+			
 			SelectObject(mem2dc, hBitmap2);
 
-			Eblock[0].Draw(mem2dc, 600 - charPos.X, 660 - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
+			//Eblock[0].Draw(mem2dc, 600 - charPos.X, 660 - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
 
-			SelectObject(mem1dc, hBitmap);
+			
 
 			if (GetPixel(mem2dc, players[player_code].pos.X + 40, players[player_code].pos.Y + 40) != RGB(254, 0, 0)) {
 				Switch[0] = 0;
@@ -626,14 +633,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			}
 			*/
 			//	몬스터가 블록 왼쪽, 오른쪽 끝에 도달하면 방향 바꾸는 코드
+			SelectObject(mem1dc, hBitmap);
 
 			if (KillMonster1 == 0) {
 				if (MonsterTurn[0] % 2 == 0) {
-					Monster_L[count].Draw(mem1dc, Monster_X[0], Block_local[2].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
+					Monster_L[count].Draw(mem1dc, Monster_X[0]- charPos.X, Block_local[2].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
 				}
 
 				if (MonsterTurn[0] % 2 != 0) {
-					Monster_R[count].Draw(mem1dc, Monster_X[0], Block_local[2].y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
+					Monster_R[count].Draw(mem1dc, Monster_X[0] - charPos.X, Block_local[2].y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
 				}
 			}
 
@@ -798,11 +806,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 						0, 0, imgSprite[i].width_run[count], imgSprite[i].height_run[count]);
 			}
 
-
-			if (Image_Number == 0) {
-				Start.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
-			}
-
 			if (Image_Number != 0 && Image_Number < 4) {
 				Dialog[Image_Number].Draw(mem1dc, 0, 100, rect.right, rect.bottom, 0, 0, 1280, 800);
 			}
@@ -910,9 +913,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			else if (hp == 1) {
 				Heart.Draw(mem1dc, 10, 10, w_heart / 120, h_heart / 120, 0, 0, w_heart, h_heart);
 			}
-			/*else if (hp == 0){
-				GameOver.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
-			}*/
+
 			if (MapNum == 1) {
 				Map.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 			}
@@ -930,16 +931,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			if (Image_Number == 8) {
 				Guide2.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 			}
-
-			BitBlt(hdc, 0, 0, rect.right, rect.bottom, mem1dc, 0, 0, SRCCOPY);
-
-			DeleteObject(hBitmap);
-			DeleteDC(mem1dc);
-			DeleteObject(hBitmap2);
-			DeleteDC(mem2dc);
-			
 		}
-		
+		else if (gameover == true) {
+			GameOver.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
+		}
+
+		BitBlt(hdc, 0, 0, rect.right, rect.bottom, mem1dc, 0, 0, SRCCOPY);
+
+		DeleteObject(hBitmap);
+		DeleteDC(mem1dc);
+		DeleteObject(hBitmap2);
+		DeleteDC(mem2dc);
+
 		EndPaint(hWnd, &ps);
 		break;
 
