@@ -5,6 +5,8 @@
 
 using namespace std;
 
+#define BLOCKNUM 23
+
 int clientCount = 0;
 FILE* fp;
 
@@ -52,6 +54,12 @@ struct PlayerInfo {
 };
 
 PlayerInfo players[MAX_PLAYER];
+
+//struct PlayerCollision {
+//	BYTE OnBlock;
+//};
+//
+//PlayerCollision pCollision[MAX_PLAYER];
 
 typedef struct SendStruct {
 	PlayerInfo players[MAX_PLAYER];
@@ -139,6 +147,10 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 	}
 
 	if (true == players[player_code].jump) {
+		/*if (pCollision[player_code].OnBlock == 1) {
+			players[player_code].jump = false;
+			players[player_code].jumpCount = 0;
+		}*/
 		players[player_code].jumpCount++;
 		if (players[player_code].jumpCount < 10)
 			players[player_code].pos.Y -= 15;
@@ -230,16 +242,26 @@ void SendFile(SOCKET client_sock)
 		printf("File - %s - Send complete\n", "mappos.txt");
 	}
 	
-	//맵 파일 읽어서 변수에 위치 저장
-	vector<BLOCK> v{28};
-
 	ifstream in{ "mappos.txt", ios::binary };
-	for (BLOCK& b : v) {
-		b.read(in);
+
+	for (int i = 0; i < BLOCKNUM; ++i) {
+		Block_local[i].read(in);
 	}
 	/*for (BLOCK& b : v) {
 		cout << b.x  << " " << b.y << " " << b.width << endl;
 	}*/
+}
+
+void MapCollision()
+{
+	for (int i = 0; i < MAX_PLAYER; ++i) {
+		for (int j = 0; j < BLOCKNUM; ++j) {
+			if (players[i].pos.X + 40 >= Block_local[j].x && players[i].pos.X + 40 <= Block_local[j].x + Block_local[j].width && players[i].pos.Y + 70 >= Block_local[j].y && players[i].pos.Y + 70 <= Block_local[j].y + 60) {
+				players[i].jump = 0;
+				players[i].jumpCount = 0;
+			}
+		}
+	}
 }
 
 void MonsterPos(int num)
@@ -407,6 +429,11 @@ DWORD WINAPI RecvThread(LPVOID arg)
 			break;
 		}
 
+		/*retval = recv(client_sock, (char*)&pCollision, sizeof(pCollision), MSG_WAITALL);
+		if (retval == SOCKET_ERROR) {
+			return 1;
+		}*/
+
 		retval = recv(client_sock, (char*)&Switch[0], sizeof(Switch[0]), MSG_WAITALL);
 		if (retval == SOCKET_ERROR) {
 			break;
@@ -426,7 +453,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 		}
 		//printf("Monster_X[0]: %d\n", Monster_X[0]);
 		
-		Sleep(10);
+		Sleep(30);
 	}
 
 	retval = send(client_sock, (char*)&gameover, sizeof(gameover), 0);
@@ -472,6 +499,7 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 
 		EventBlockPos(0);
 		MonsterPos(0);
+		MapCollision();
 
 		CheckGameEnd();
 

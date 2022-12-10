@@ -305,7 +305,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int MouseX, MouseY;
 	static int w_block, h_block;
 	static int w_eblock, h_eblock;
-	static int OnBlock = 0;
 	static int w_heart, h_heart;
 	static int w_Key, h_Key;
 	static int w_Portal, h_Portal;
