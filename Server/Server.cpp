@@ -242,16 +242,16 @@ void SendFile(SOCKET client_sock)
 	}*/
 }
 
-void MonsterPos(int num, BYTE player_code)
+void MonsterPos(int num)
 {
 	if (num == 0) {
-		if (Monster_X[num] < Block_local[2].x || Monster_X[num] + 72 > Block_local[2].x - players[player_code].charPos.X + Block_local[2].width) {
-			if (Monster_X[num] < Block_local[2].x - players[player_code].charPos.X) {
-				Monster_X[num] = Block_local[2].x - players[player_code].charPos.X;
+		if (Monster_X[num] < Block_local[2].x || Monster_X[num] + 72 > Block_local[2].x + Block_local[2].width) {
+			if (Monster_X[num] < Block_local[2].x) {
+				Monster_X[num] = Block_local[2].x;
 			}
 
-			if (Monster_X[num] + 72 > Block_local[2].x - players[player_code].charPos.X + Block_local[2].width) {
-				Monster_X[num] = Block_local[2].x - players[player_code].charPos.X + Block_local[2].width - 72;
+			if (Monster_X[num] + 72 > Block_local[2].x + Block_local[2].width) {
+				Monster_X[num] = Block_local[2].x + Block_local[2].width - 72;
 			}
 			MonsterTurn[num]++;
 		}
@@ -266,7 +266,7 @@ void MonsterPos(int num, BYTE player_code)
 	}
 }
 
-void EventBlockPos(int num, BYTE player_code)
+void EventBlockPos(int num)
 {
 	if (num == 0) {
 		/*if (Switch[num] == 1) {
@@ -291,7 +291,7 @@ void EventBlockPos(int num, BYTE player_code)
 			}
 		}*/
 		if (MoveBlockTurn[num] % 2 == 0) {
-			if (MoveBlock_X[num] - players[player_code].charPos.X >= 0) {
+			if (MoveBlock_X[num] >= 0) {
 				MoveBlock_X[num] -= 1;
 			}
 
@@ -301,7 +301,7 @@ void EventBlockPos(int num, BYTE player_code)
 		}
 
 		else {
-			if (MoveBlock_X[num] + players[player_code].charPos.X <= 1000) {
+			if (MoveBlock_X[num] <= 1000) {
 				MoveBlock_X[num] += 1;
 			}
 
@@ -470,8 +470,8 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 		}
 		LeaveCriticalSection(&cs);
 
-		EventBlockPos(0, 0);
-		MonsterPos(0, 0);
+		EventBlockPos(0);
+		MonsterPos(0);
 
 		CheckGameEnd();
 
