@@ -2,10 +2,10 @@
 #include "Protocol.h"
 #include <fstream>
 #include <vector>
-
+#include <iostream>
 using namespace std;
 
-#define BLOCKNUM 23
+#define BLOCKNUM 31
 
 int clientCount = 0;
 FILE* fp;
@@ -40,7 +40,7 @@ public:
 	}
 };
 
-BLOCK Block_local[28];
+BLOCK Block_local[BLOCKNUM];
 
 struct PlayerInfo {
 	bool keyPress_D, keyPress_A;
@@ -146,16 +146,22 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 		break;
 	}
 
+	static bool jumptemp = false;
 	if (true == players[player_code].jump) {
 		/*if (pCollision[player_code].OnBlock == 1) {
 			players[player_code].jump = false;
 			players[player_code].jumpCount = 0;
 		}*/
-		players[player_code].jumpCount++;
+		if (jumptemp) jumptemp = false;
+		else if (!jumptemp) jumptemp = true; 
+
+		if (jumptemp)
+			players[player_code].jumpCount++;
+
 		if (players[player_code].jumpCount < 10)
-			players[player_code].pos.Y -= 15;
+			players[player_code].pos.Y -= 10;
 		else if (players[player_code].jumpCount < 19)
-			players[player_code].pos.Y += 15;
+			players[player_code].pos.Y += 10;
 		else if (players[player_code].jumpCount >= 20) {
 			players[player_code].jump = false;
 			players[player_code].jumpCount = 0;
@@ -163,8 +169,8 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 	}
 
 	if (true == players[player_code].keyPress_A) {
-		if (players[player_code].pos.X > 10) {			
-			players[player_code].pos.X -= 5 ;
+		if (players[player_code].pos.X > 10) {
+			players[player_code].pos.X -= 5;
 		}
 		players[player_code].left = 1;
 	}
@@ -173,7 +179,7 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 	}
 
 	if (true == players[player_code].keyPress_D) {
-		if (players[player_code].pos.X < 2400) { 
+		if (players[player_code].pos.X < 2400) {
 			players[player_code].pos.X += 5;
 		}
 		players[player_code].right = 1;
@@ -227,7 +233,6 @@ void SendFile(SOCKET client_sock)
 				break;
 
 			retval = send(client_sock, buf, read_length, 0);
-			printf("send_file : %d\n", retval);
 			if (retval == SOCKET_ERROR) {
 				printf("Send Failed\n");
 				EnterCriticalSection(&cs);
@@ -241,22 +246,34 @@ void SendFile(SOCKET client_sock)
 		fclose(ff);
 		printf("File - %s - Send complete\n", "mappos.txt");
 	}
-	
+
 	ifstream in{ "mappos.txt", ios::binary };
 
 	for (int i = 0; i < BLOCKNUM; ++i) {
 		Block_local[i].read(in);
 	}
-	/*for (BLOCK& b : v) {
-		cout << b.x  << " " << b.y << " " << b.width << endl;
-	}*/
 }
 
 void MapCollision()
 {
 	for (int i = 0; i < MAX_PLAYER; ++i) {
-		for (int j = 0; j < BLOCKNUM; ++j) {
-			if (players[i].pos.X + 40 >= Block_local[j].x && players[i].pos.X + 40 <= Block_local[j].x + Block_local[j].width && players[i].pos.Y + 70 >= Block_local[j].y && players[i].pos.Y + 70 <= Block_local[j].y + 60) {
+		for (int j = 0; j < BLOCKNUM - 2; ++j) {
+			if (players[i].pos.X + 40 >= Block_local[j].x && players[i].pos.X + 40 <= Block_local[j].x + Block_local[j].width && 
+				players[i].pos.Y + 70 >= Block_local[j].y && players[i].pos.Y + 70 <= Block_local[j].y + 60) {
+				players[i].jump = 0;
+				players[i].jumpCount = 0;
+			}
+		}
+	}
+}
+
+void CharacterCollision()
+{
+	for (int i = 0; i < MAX_PLAYER; ++i) {
+		for (int j = 0; j < MAX_PLAYER; ++j) {
+			if (i == j) continue;
+			if (players[i].pos.X + 40 >= players[j].pos.X && players[i].pos.X + 40 <= players[j].pos.X + 80 &&
+				players[i].pos.Y + 70 <= players[j].pos.Y + 10 && players[i].pos.Y + 70 >= players[j].pos.Y - 2) {
 				players[i].jump = 0;
 				players[i].jumpCount = 0;
 			}
@@ -372,7 +389,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 
 		return 1;
 	}
-	
+
 	// 캐릭터 초기값 설정
 	InitPlayer(player_code);
 
@@ -452,8 +469,8 @@ DWORD WINAPI RecvThread(LPVOID arg)
 			break;
 		}
 		//printf("Monster_X[0]: %d\n", Monster_X[0]);
-		
-		Sleep(30);
+
+		Sleep(20);
 	}
 
 	retval = send(client_sock, (char*)&gameover, sizeof(gameover), 0);
@@ -479,7 +496,7 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 		}
 		LeaveCriticalSection(&cs);
 	}
-	
+
 	// 게임 시작
 	SetEvent(gameStartEvent);
 	printf("GameStart \n");
@@ -500,12 +517,13 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 		EventBlockPos(0);
 		MonsterPos(0);
 		MapCollision();
+		CharacterCollision();
 
 		CheckGameEnd();
 
 		Sleep(10);
 	}
-	
+
 	ResetEvent(gameStartEvent);
 	return 0;
 }
@@ -562,10 +580,10 @@ int main()
 			clientCount++;
 			LeaveCriticalSection(&cs);
 		}
-		else if(clientCount > 3) {
+		else if (clientCount > 3) {
 			closesocket(client_sock);
 		}
-		
+
 		if (clientCount == 3) {
 			hThread = CreateThread(NULL, 0, CollisionSendThread, (LPVOID)client_sock, 0, NULL);
 			if (hThread == NULL) { CloseHandle(hThread); }

@@ -1,5 +1,5 @@
-#define _CRT_SECURE_NO_WARNINGS // ±¸Çü C ÇÔ¼ö »ç¿ë ½Ã °æ°í ²ô±â
-#define _WINSOCK_DEPRECATED_NO_WARNINGS // ±¸Çü ¼ÒÄÏ API »ç¿ë ½Ã °æ°í ²ô±â
+ï»¿#define _CRT_SECURE_NO_WARNINGS // ï¿½ï¿½ï¿½ï¿½ C ï¿½Ô¼ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+#define _WINSOCK_DEPRECATED_NO_WARNINGS // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ API ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
 #ifdef _DEBUG
 #pragma comment(linker, "/entry:WinMainCRTStartup /subsystem:console" )
@@ -16,8 +16,7 @@
 #include "Protocol.h"
 
 #define SERVERIP "127.0.0.1"
-//#define SERVERIP "192.168.182.213"
-#define BLOCKNUM 23
+#define BLOCKNUM 31
 using namespace std;
 
 LPCTSTR lpszClass = L"Window Class Name";
@@ -45,7 +44,7 @@ struct BLOCK {
 		width = w;
 	}
 };
-static BLOCK Block_local[28];
+static BLOCK Block_local[BLOCKNUM];
 
 struct PlayerInfo {
 	bool keyPress_D, keyPress_A;
@@ -67,6 +66,11 @@ static int MonsterTurn[3] = { 0 };
 static int Switch[3] = { 0 };
 static int MoveBlockTurn[3] = { 0 };
 static int MoveBlock_X[3] = { 0 };
+
+static int Key_X;
+static int Key_Y;
+static int Portal_X;		// Portal ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¿ï¿½
+static int Portal_Y;
 
 bool gamestart = false;
 bool gameover = false;
@@ -123,15 +127,21 @@ void ReadFile(SOCKET sock)
 	fclose(ff);
 	putchar('\n');
 	printf("File - %s - download complete\n", "mappos.txt");
-	
+
 	ifstream in{ "mappos.txt", ios::binary };
 
 	for (int i = 0; i < BLOCKNUM; ++i) {
 		Block_local[i].read(in);
 	}
-	/*for (int i = 0; i < BLOCKNUM; ++i) {
-		cout << Block_local[i].x  << " " << Block_local[i].y << " " << Block_local[i].width << endl;
-	}*/
+
+	Portal_X = Block_local[29].x;
+	Portal_Y = Block_local[29].y;
+	Key_X = Block_local[30].x;
+	Key_Y = Block_local[30].y;
+
+	/*cout << Block_local[26].x <<  " " << Block_local[26].y << endl;
+	cout << Block_local[27].x <<  " " << Block_local[27].y << endl;*/
+
 }
 
 DWORD WINAPI CommunicationThread(LPVOID arg)
@@ -150,11 +160,11 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	serveraddr.sin_port = htons(SERVERPORT);
 	retval = connect(sock, (struct sockaddr*)&serveraddr, sizeof(serveraddr));
 	if (retval == SOCKET_ERROR) return 1;
-	
-	//¸Ê À§Ä¡ ÆÄÀÏ¼ö½Å
+
+	//ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½Ï¼ï¿½ï¿½ï¿½
 	ReadFile(sock);
 
-	retval = send(sock, (char*)&Block_local[2].x, sizeof(Block_local[2].x), 0);	// ¸ó½ºÅÍ ÃÊ±â ÁÂÇ¥ Àü¼Û, Block_local[2].x ºÎºÐ º¯°æ ÇÊ¿ä
+	retval = send(sock, (char*)&Block_local[2].x, sizeof(Block_local[2].x), 0);	// ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½ ï¿½ï¿½Ç¥ ï¿½ï¿½ï¿½ï¿½, Block_local[2].x ï¿½Îºï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¿ï¿½
 	if (retval == SOCKET_ERROR) {
 		return 1;
 	}
@@ -162,8 +172,8 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	if (retval == SOCKET_ERROR) {
 		return 1;
 	}
-	
-	// Ä³¸¯ÅÍ ÄÚµå ¹× ÃÊ±â°ª ¹Þ±â
+
+	// Ä³ï¿½ï¿½ï¿½ï¿½ ï¿½Úµï¿½ ï¿½ï¿½ ï¿½Ê±â°ª ï¿½Þ±ï¿½
 	retval = recv(sock, (char*)&player_code, sizeof(player_code), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) return  1;
 
@@ -177,7 +187,7 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	MoveBlockTurn[0] = recv_struct.MoveBlockTurn;
 	MoveBlock_X[0] = recv_struct.MoveBlock_X;
 	memcpy(players, recv_struct.players, sizeof(players));
-	
+
 	EnterCriticalSection(&cs);
 	retval = recv(sock, (char*)&gamestart, sizeof(gamestart), MSG_WAITALL);
 	LeaveCriticalSection(&cs);
@@ -322,31 +332,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int CharNum = 1;
 	static int click = 0;
 
-	static int Monster1Turn;	//	¾Æ·¡ÂÊ ¸ó½ºÅÍ, ÇØ´ç º¯¼ö°¡ Â¦¼öÀÎÁö È¦¼öÀÎÁö¿¡ µû¶ó ¹æÇâ ¹Ù²ñ
-	static int Monster2Turn;	//	À§ÂÊ ¸ó½ºÅÍ
+	static int Monster1Turn;	//	ï¿½Æ·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½, ï¿½Ø´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Â¦ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È¦ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ù²ï¿½
+	static int Monster2Turn;	//	ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
-	static int hit;	//	¸ó½ºÅÍ Ãæµ¹ È½¼ö
-	static int protect;	//	Ã³À½ Ãæµ¹ ÈÄ ÀÏÁ¤ ½Ã°£ ¹«Àû, µ¥¹ÌÁö ¹ÞÁö ¾ÊÀ½. ÀÌ°Å ÆÇ´ÜÇÏ´Â º¯¼ö
+	static int hit;	//	ï¿½ï¿½ï¿½ï¿½ ï¿½æµ¹ È½ï¿½ï¿½
+	static int protect;	//	Ã³ï¿½ï¿½ ï¿½æµ¹ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½. ï¿½Ì°ï¿½ ï¿½Ç´ï¿½ï¿½Ï´ï¿½ ï¿½ï¿½ï¿½ï¿½
 
-	static int Key_X = 1200;	// Key À§Ä¡ ¼öÁ¤ ÇÊ¿ä
-	static int Key_Y = -1020;
-	static int Key_Image = 1;
+	static int Key_Image = 1;// Key ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¿ï¿½
 	static int Heart_Click = 0;
 	static int MapNum = 0;
 
-	static int Portal_X = 800;		// Portal À§Ä¡ ¼öÁ¤ ÇÊ¿ä
-	static int Portal_Y = -120;
 
-	
-	// ÀÌµ¿ ºí·Ï Å×½ºÆ®¿ë -> static int·Î ¼±¾ðÇØ¾ß °ª º¯°æ ¹Ý¿µµÊ
+	// ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½×½ï¿½Æ®ï¿½ï¿½ -> static intï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ø¾ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ý¿ï¿½ï¿½ï¿½
 	static int Block_localX = 50;
 	Block_local[23].y = 500;
 	Block_local[23].width = 100;
-	static int MoveBlock;	// ¹æÇâ º¯¼ö -> Â¦¼öÀÏ °æ¿ì ¿ÞÂÊÀ¸·Î ÀÌµ¿, ¾Æ´Ò °æ¿ì ¿À¸¥ÂÊ
-	// ¿©±â À§±îÁö ¹æÇØµÇ¸é ÁÖ¼® Ã³¸® ÇØÁÖ¼¼¿ä
+	static int MoveBlock;	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ -> Â¦ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½, ï¿½Æ´ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ØµÇ¸ï¿½ ï¿½Ö¼ï¿½ Ã³ï¿½ï¿½ ï¿½ï¿½ï¿½Ö¼ï¿½ï¿½ï¿½
 	/*
-	static int Monster1_X;	//	¾Æ·¡ÂÊ ¸ó½ºÅÍ xÁÂÇ¥
-	static int Monster2_X;	//	À§ÂÊ ¸ó½ºÅÍ xÁÂÇ¥
+	static int Monster1_X;	//	ï¿½Æ·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ xï¿½ï¿½Ç¥
+	static int Monster2_X;	//	ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ xï¿½ï¿½Ç¥
 	*/
 
 	static int KillMonster1;
@@ -359,7 +364,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static bool jump = 0;
 	static int jumpCount = 0;
 	static BYTE hp;
-	
+
 
 
 	switch (iMsg) {
@@ -375,7 +380,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		imgSprite[0].stand[1].Load(L"cookie1-stand1.png");
 		imgSprite[0].stand[2].Load(L"cookie1-stand2.png");
 		imgSprite[0].stand[3].Load(L"cookie1-stand2.png");
-		
+
 		imgSprite[0].run_L[0].Load(L"cookie1-runL1.png");
 		imgSprite[0].run_L[1].Load(L"cookie1-runL2.png");
 		imgSprite[0].run_L[2].Load(L"cookie1-runL3.png");
@@ -395,17 +400,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		imgSprite[1].stand[1].Load(L"cookie2-stand1.png");
 		imgSprite[1].stand[2].Load(L"cookie2-stand2.png");
 		imgSprite[1].stand[3].Load(L"cookie2-stand2.png");
-					 
+
 		imgSprite[1].run_L[0].Load(L"cookie2-runL1.png");
 		imgSprite[1].run_L[1].Load(L"cookie2-runL2.png");
 		imgSprite[1].run_L[2].Load(L"cookie2-runL3.png");
 		imgSprite[1].run_L[3].Load(L"cookie2-runL4.png");
-					 
+
 		imgSprite[1].run_R[0].Load(L"cookie2-runR1.png");
 		imgSprite[1].run_R[1].Load(L"cookie2-runR2.png");
 		imgSprite[1].run_R[2].Load(L"cookie2-runR3.png");
 		imgSprite[1].run_R[3].Load(L"cookie2-runR4.png");
-					 
+
 		imgSprite[1].jump[0].Load(L"cookie2-jump1.png");
 		imgSprite[1].jump[1].Load(L"cookie2-jump2.png");
 		imgSprite[1].jump[2].Load(L"cookie2-jump3.png");
@@ -442,7 +447,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		Monster_R[2].Load(L"monster-R3.png");
 		Monster_R[3].Load(L"monster-R4.png");
 
-		Guide.Load(L"ÆÖ¸».png");
+		Guide.Load(L"ï¿½Ö¸ï¿½.png");
 		Guide2.Load(L"Guide2.png");
 		Heart.Load(L"heart.png");
 		Key.Load(L"key.png");
@@ -499,7 +504,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			w_damage[i] = Damage[i].GetWidth();
 			h_damage[i] = Damage[i].GetHeight();
 
-			imgSprite[0].width_stand[i]	= imgSprite[0].stand[i].GetWidth();
+			imgSprite[0].width_stand[i] = imgSprite[0].stand[i].GetWidth();
 			imgSprite[0].height_stand[i] = imgSprite[0].stand[i].GetHeight();
 
 			imgSprite[0].width_run[i] = imgSprite[0].run_L[i].GetWidth();
@@ -508,21 +513,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			imgSprite[0].width_jump[i] = imgSprite[0].jump[i].GetWidth();
 			imgSprite[0].height_jump[i] = imgSprite[0].jump[i].GetHeight();
 
-			imgSprite[1].width_stand[i] =  imgSprite[1].stand[i].GetWidth();
+			imgSprite[1].width_stand[i] = imgSprite[1].stand[i].GetWidth();
 			imgSprite[1].height_stand[i] = imgSprite[1].stand[i].GetHeight();
-						 
-			imgSprite[1].width_run[i] =	imgSprite[1].run_L[i].GetWidth();
+
+			imgSprite[1].width_run[i] = imgSprite[1].run_L[i].GetWidth();
 			imgSprite[1].height_run[i] = imgSprite[1].run_L[i].GetHeight();
-						 
+
 			imgSprite[1].width_jump[i] = imgSprite[1].jump[i].GetWidth();
 			imgSprite[1].height_jump[i] = imgSprite[1].jump[i].GetHeight();
 
 			imgSprite[2].width_stand[i] = imgSprite[2].stand[i].GetWidth();
 			imgSprite[2].height_stand[i] = imgSprite[2].stand[i].GetHeight();
-						 
+
 			imgSprite[2].width_run[i] = imgSprite[2].run_L[i].GetWidth();
 			imgSprite[2].height_run[i] = imgSprite[2].run_L[i].GetHeight();
-						 
+
 			imgSprite[2].width_jump[i] = imgSprite[2].jump[i].GetWidth();
 			imgSprite[2].height_jump[i] = imgSprite[2].jump[i].GetHeight();
 
@@ -530,10 +535,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			h_monster[i] = Monster_R[i].GetHeight();
 		}
 
-		
+
 		/*Monster1_X = Block_local[2].x - charPos.X + Block_local[2].width - 72;
 		Monster2_X = Block_local[15].x - charPos.X;*/
-		
+
 
 		SetTimer(hWnd, 0, 50, NULL);
 
@@ -577,26 +582,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			Guide.Draw(mem1dc, 750 - charPos.X, 590 - charPos.Y, w_guide * 2 / 3, h_guide * 2 / 3, 0, 0, w_guide, h_guide);
 			Portal.Draw(mem1dc, Portal_X - charPos.X, Portal_Y - charPos.Y - h_Portal * 1 / 4, w_Portal * 1 / 4, h_Portal * 1 / 4, 0, 0, w_Portal, h_Portal);
 
-			
+
 			Block.Draw(mem1dc, MoveBlock_X[0] - charPos.X, Block_local[0].y - charPos.Y, Block_local[0].width, 60, 0, 0, w_block, h_block);
 
 			for (int i = 0; i < BLOCKNUM; i++) {
-				if (i < 11)
-					Block.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);	// º®µ¹-
-				else if (i < 17)
+				if (i < 11 +2)
+					Block.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);	// ï¿½ï¿½ï¿½ï¿½-
+				else if (i < 17 +2)
 					Blockr.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
-				else if (i < 22)
+				else if (i < 22 +2)
 					Blockg.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
 				else
 					Blocko.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
 			}
-			
-			
+
+
 			SelectObject(mem2dc, hBitmap2);
 
 			//Eblock[0].Draw(mem2dc, 600 - charPos.X, 660 - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
 
-			
+
 
 			if (GetPixel(mem2dc, players[player_code].pos.X + 40, players[player_code].pos.Y + 40) != RGB(254, 0, 0)) {
 				Switch[0] = 0;
@@ -608,7 +613,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				Eblock[1].Draw(mem1dc, 600 - charPos.X, 660 - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
 			}
 			/*
-			// ºí·Ï ÀÌµ¿ ÄÚµå (ÇöÀç »ç¿ë x)
+			// ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½Úµï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ x)
 			if (Switch == 1) {
 				if (MoveBlock % 2 == 0) {
 					if (Block_localX - charPos.X >= 0) {
@@ -631,12 +636,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				}
 			}
 			*/
-			//	¸ó½ºÅÍ°¡ ºí·Ï ¿ÞÂÊ, ¿À¸¥ÂÊ ³¡¿¡ µµ´ÞÇÏ¸é ¹æÇâ ¹Ù²Ù´Â ÄÚµå
+			//	ï¿½ï¿½ï¿½Í°ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ù²Ù´ï¿½ ï¿½Úµï¿½
 			SelectObject(mem1dc, hBitmap);
 
 			if (KillMonster1 == 0) {
 				if (MonsterTurn[0] % 2 == 0) {
-					Monster_L[count].Draw(mem1dc, Monster_X[0]- charPos.X, Block_local[2].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
+					Monster_L[count].Draw(mem1dc, Monster_X[0] - charPos.X, Block_local[2].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
 				}
 
 				if (MonsterTurn[0] % 2 != 0) {
@@ -657,7 +662,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 					Monster1Turn++;
 				}
 
-				//	¸ó½ºÅÍ°¡ ¿À¸¥ÂÊÀ¸·Î ÀÌµ¿ÇÒ ¶§, Ä³¸¯ÅÍ°¡ ¿À¸¥ÂÊ¿¡¼­ ºÎµúÈ÷¸é ÇÏÆ® ±ðÀÓ... µîÁö°í ÀÖÀ» ¶§µµ ±ðÀÌ°Ô ÇÒ±î °í¹Î Áß
+				//	ï¿½ï¿½ï¿½Í°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ï¿½ï¿½ ï¿½ï¿½, Ä³ï¿½ï¿½ï¿½Í°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ê¿ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½... ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì°ï¿½ ï¿½Ò±ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
 
 				if (Monster1Turn % 2 == 0) {
 					Monster_L[count].Draw(mem1dc, Monster1_X, Block_local[2].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
@@ -675,7 +680,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 							protect++;
 						}
 
-						//	protect°¡ 20ÀÌ µÇ¸é ¹«Àû ÇØÁ¦, ºÎµúÈú °æ¿ì ÇÇ ±ðÀÓ
+						//	protectï¿½ï¿½ 20ï¿½ï¿½ ï¿½Ç¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½, ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
 						if (protect == 20) {
 							protect = 0;
@@ -712,7 +717,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				}
 			}
 
-			//	À§¶û ¶È°°Àº ³»¿ëÀÎµ¥ À§ÂÊ ¸ó½ºÅÍ
+			//	ï¿½ï¿½ï¿½ï¿½ ï¿½È°ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Îµï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
 			if (KillMonster2 == 0) {
 				if (Monster2_X < Block_local[15].x - charPos.X || Monster2_X + w_monster[count] / 2 > Block_local[15].x - charPos.X + Block_local[15].width) {
@@ -777,18 +782,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 					Monster2_X += 5;
 				}
 			}*/
-			/*
-					if (Key_Image == 1)
-						Key.Draw(mem1dc, Key_X - charPos.X, Key_Y - charPos.Y, w_Key * 1 / 2, h_Key * 1 / 2, 0, 0, w_Key, h_Key);
+			
+			if (Key_Image == 1)
+				Key.Draw(mem1dc, Key_X - charPos.X, Key_Y - charPos.Y, w_Key * 1 / 2, h_Key * 1 / 2, 0, 0, w_Key, h_Key);
 
-					if (Key_Image == 0) {
-						Key.Draw(mem1dc, 1170, 0, w_Key * 1 / 2, h_Key * 1 / 2, 0, 0, w_Key, h_Key);
-					}
+			if (Key_Image == 0) {
+				Key.Draw(mem1dc, 1170, 0, w_Key * 1 / 2, h_Key * 1 / 2, 0, 0, w_Key, h_Key);
+			}
 
-					if (players[player_code].pos.X >= Key_X - charPos.X && players[player_code].pos.X <= Key_X - charPos.X + w_Key * 1 / 2 && players[player_code].pos.Y >= Key_Y - charPos.Y && players[player_code].pos.Y <= Key_Y + h_Key * 1 / 2) {
-						Key_Image = 0;
-					}
-			*/
+			if (players[player_code].pos.X >= Key_X - charPos.X && players[player_code].pos.X <= Key_X - charPos.X + w_Key * 1 / 2 && players[player_code].pos.Y >= Key_Y - charPos.Y && players[player_code].pos.Y <= Key_Y + h_Key * 1 / 2) {
+				Key_Image = 0;
+			}
 
 			for (int i = 0; i < MAX_PLAYER; ++i) {
 				if (players[i].left == 0 && players[i].right == 0 && players[i].jump == 0)
@@ -887,7 +891,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				}
 			}
 
-			// Áß·Â Ã³¸® ÇÏ·Á°í Çß´ø ºÎºÐ
+			// ï¿½ß·ï¿½ Ã³ï¿½ï¿½ ï¿½Ï·ï¿½ï¿½ï¿½ ï¿½ß´ï¿½ ï¿½Îºï¿½
 			if (jump == 0 && GetPixel(mem1dc, x, y + 70) != RGB(37, 176, 77) && y != 620) {
 				OnBlock = 0;
 			}
@@ -951,7 +955,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_KEYUP:
-		
+
 		if (wParam == 'A' || wParam == 'a') {
 			EnterCriticalSection(&cs);
 			msg = CS_KEYUP_A;
