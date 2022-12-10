@@ -51,6 +51,7 @@ struct PlayerInfo {
 	BYTE characterCode;
 	bool jump;
 	BYTE jumpCount;
+	bool collision;
 };
 
 PlayerInfo players[MAX_PLAYER];
@@ -99,6 +100,7 @@ void InitPlayer(BYTE player_code)
 	players[player_code].keyPress_D = false;
 	players[player_code].jump = false;
 	players[player_code].jumpCount = 0;
+	players[player_code].collision = true;
 }
 
 BYTE RandomCharacter();
@@ -253,16 +255,33 @@ void SendFile(SOCKET client_sock)
 		Block_local[i].read(in);
 	}
 }
+void Gravity()
+{
+	/*for (int i = 0; i < MAX_PLAYER; ++i) {
+		if (players[i].jump || players[i].collision)
+			continue;
+		if (players[i].pos.Y >= 620) {
+			players[i].pos.Y = 620;
+			players[i].collision = true;
+		}
+		else if (!players[i].collision && players[i].pos.Y < 620) {
+			players[i].pos.Y += 10;
+		}
+	}*/
+}
 
 void MapCollision()
 {
 	for (int i = 0; i < MAX_PLAYER; ++i) {
 		for (int j = 0; j < BLOCKNUM - 2; ++j) {
 			if (players[i].pos.X + 40 >= Block_local[j].x && players[i].pos.X + 40 <= Block_local[j].x + Block_local[j].width && 
-				players[i].pos.Y + 70 >= Block_local[j].y && players[i].pos.Y + 70 <= Block_local[j].y + 60) {
+				players[i].pos.Y + 70 >= Block_local[j].y && players[i].pos.Y + 70 <= Block_local[j].y + 20) {
 				players[i].jump = 0;
 				players[i].jumpCount = 0;
+				players[i].collision = true;
 			}
+			else 
+				players[i].collision = false;
 		}
 	}
 }
@@ -273,10 +292,12 @@ void CharacterCollision()
 		for (int j = 0; j < MAX_PLAYER; ++j) {
 			if (i == j) continue;
 			if (players[i].pos.X + 40 >= players[j].pos.X && players[i].pos.X + 40 <= players[j].pos.X + 80 &&
-				players[i].pos.Y + 70 <= players[j].pos.Y + 10 && players[i].pos.Y + 70 >= players[j].pos.Y - 2) {
+				players[i].pos.Y + 70 <= players[j].pos.Y + 10 && players[i].pos.Y + 70 >= players[j].pos.Y -2) {
 				players[i].jump = 0;
-				players[i].jumpCount = 0;
+				players[i].collision = true;
 			}
+			else
+				players[i].collision = false;
 		}
 	}
 }
@@ -518,6 +539,7 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 		MonsterPos(0);
 		MapCollision();
 		CharacterCollision();
+		Gravity();
 
 		CheckGameEnd();
 

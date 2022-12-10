@@ -55,6 +55,7 @@ struct PlayerInfo {
 	BYTE characterCode;
 	bool jump;
 	BYTE jumpCount;
+	bool collision;
 };
 CRITICAL_SECTION cs;
 PlayerInfo players[MAX_PLAYER];
