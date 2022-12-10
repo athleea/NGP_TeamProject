@@ -55,7 +55,8 @@ struct PlayerInfo {
 	BYTE characterCode;
 	bool jump;
 	BYTE jumpCount;
-	bool collision;
+	bool MCollision;
+	bool CCollision;
 };
 CRITICAL_SECTION cs;
 PlayerInfo players[MAX_PLAYER];
@@ -63,10 +64,15 @@ BYTE msg = 0;
 BYTE player_code;
 static COORD charPos = { 0,0 };
 static int Monster_X[3] = { 0 };
-static int MonsterTurn[3] = { 0 };
+static int MonsterTurn[3] = { 0, 0, 1 };
+static int MonsterBlock[3] = { 2,6,9 };
+static int MonsterKill[3] = { 0 };
 static int Switch[3] = { 0 };
 static int MoveBlockTurn[3] = { 0 };
 static int MoveBlock_X[3] = { 0 };
+int KillChar = 0;
+int HitChar = 0;
+int DamageNum = 0;
 
 static int Key_X;
 static int Key_Y;
@@ -81,8 +87,12 @@ bool gameover = false;
 
 typedef struct RecvStruct {
 	PlayerInfo players[MAX_PLAYER];
-	int Monster_X;
-	int MonsterTurn;
+	int Monster_X[3];
+	int MonsterTurn[3];
+	int MonsterKill[3];
+	int KillChar;
+	int HitChar;
+	int DamageNum;
 	int MoveBlockTurn;
 	int MoveBlock_X;
 } Recv;
@@ -165,15 +175,6 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	//�� ��ġ ���ϼ���
 	ReadFile(sock);
 
-	retval = send(sock, (char*)&Block_local[2].x, sizeof(Block_local[2].x), 0);	// ���� �ʱ� ��ǥ ����, Block_local[2].x �κ� ���� �ʿ�
-	if (retval == SOCKET_ERROR) {
-		return 1;
-	}
-	retval = send(sock, (char*)&Block_local[2].width, sizeof(Block_local[2].width), 0);
-	if (retval == SOCKET_ERROR) {
-		return 1;
-	}
-
 	// ĳ���� �ڵ� �� �ʱⰪ �ޱ�
 	retval = recv(sock, (char*)&player_code, sizeof(player_code), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) return  1;
@@ -183,8 +184,15 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	if (retval == SOCKET_ERROR) {
 		return 1;
 	}
-	MonsterTurn[0] = recv_struct.MonsterTurn;
-	Monster_X[0] = recv_struct.Monster_X;
+
+	for (int i = 0; i < 3; ++i) {
+		MonsterTurn[i] = recv_struct.MonsterTurn[i];
+		Monster_X[i] = recv_struct.Monster_X[i];
+		MonsterKill[i] = recv_struct.MonsterKill[i];
+	}
+	KillChar = recv_struct.KillChar;
+	HitChar = recv_struct.HitChar;
+	DamageNum = recv_struct.DamageNum;
 	MoveBlockTurn[0] = recv_struct.MoveBlockTurn;
 	MoveBlock_X[0] = recv_struct.MoveBlock_X;
 	memcpy(players, recv_struct.players, sizeof(players));
@@ -212,8 +220,15 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 		if (retval == SOCKET_ERROR) {
 			break;
 		}
-		MonsterTurn[0] = recv_struct.MonsterTurn;
-		Monster_X[0] = recv_struct.Monster_X;
+
+		for (int i = 0; i < 3; ++i) {
+			MonsterTurn[i] = recv_struct.MonsterTurn[i];
+			Monster_X[i] = recv_struct.Monster_X[i];
+			MonsterKill[i] = recv_struct.MonsterKill[i];
+		}
+		KillChar = recv_struct.KillChar;
+		HitChar = recv_struct.HitChar;
+		DamageNum = recv_struct.DamageNum;
 		MoveBlockTurn[0] = recv_struct.MoveBlockTurn;
 		MoveBlock_X[0] = recv_struct.MoveBlock_X;
 		memcpy(players, recv_struct.players, sizeof(players));
@@ -321,8 +336,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int w_Portal, h_Portal;
 	static int w_monster[4], h_monster[4];
 	static int ClearCount = 0;
-	static int DamageNum = 0;
-	static int KillNum = 0;
+	static int KillNum[3] = { 1,1,1 };
 
 	static int bw, bh, gw, gh;
 
@@ -640,13 +654,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			//	���Ͱ� ���� ����, ������ ���� �����ϸ� ���� �ٲٴ� �ڵ�
 			SelectObject(mem1dc, hBitmap);
 
-			if (KillMonster1 == 0) {
-				if (MonsterTurn[0] % 2 == 0) {
-					Monster_L[count].Draw(mem1dc, Monster_X[0] - charPos.X, Block_local[2].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
-				}
+			for (int i = 0; i < 3; ++i) {
+				if (MonsterKill[i] == 0) {
+					if (MonsterTurn[i] % 2 == 0) {
+						Monster_L[count].Draw(mem1dc, Monster_X[i] - charPos.X, Block_local[MonsterBlock[i]].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
+					}
 
-				if (MonsterTurn[0] % 2 != 0) {
-					Monster_R[count].Draw(mem1dc, Monster_X[0] - charPos.X, Block_local[2].y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
+					if (MonsterTurn[i] % 2 != 0) {
+						Monster_R[count].Draw(mem1dc, Monster_X[i] - charPos.X, Block_local[MonsterBlock[i]].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
+					}
 				}
 			}
 
@@ -819,24 +835,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			}
 
 			if (DamageNum == 1) {
-				if (Monster1Turn % 2 == 0 && Monster2Turn % 2 != 0) {
-					Damage[count].Draw(mem1dc, players[player_code].pos.X + 20, players[player_code].pos.Y, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
-				}
-
-				if (Monster1Turn % 2 != 0 && Monster2Turn % 2 == 0) {
-					Damage[count].Draw(mem1dc, players[player_code].pos.X - 20, players[player_code].pos.Y, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
-				}
-
-				if (count == 3) {
-					DamageNum = 0;
-				}
+				Damage[count].Draw(mem1dc, players[HitChar].pos.X, players[HitChar].pos.Y, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
 			}
 
-			if (KillNum == 1) {
-				Damage[count].Draw(mem1dc, players[player_code].pos.X, players[player_code].pos.Y + 70, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
+			for (int i = 0; i < 3; ++i) {
+				if (MonsterKill[i] == 1) {
+					if (KillNum[i] == 1) {
+						Damage[count].Draw(mem1dc, players[KillChar].pos.X, players[KillChar].pos.Y + 70, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
 
-				if (count == 3) {
-					KillNum = 0;
+						if (count == 9) {	// 원래 9 말고 3
+							KillNum[i] = 0;
+						}
+					}
 				}
 			}
 

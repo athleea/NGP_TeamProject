@@ -17,10 +17,18 @@ SOCKET sockManager[MAX_PLAYER];
 int ready = 0;
 bool gameover = false;
 static int Monster_X[3] = { 0 };
-static int MonsterTurn[3] = { 0 };
+static int MonsterTurn[3] = { 0, 0, 1 };
+static int MonsterBlock[3] = { 2,6,9 };
+static int MonsterKill[3] = { 0 };
 static int Switch[3] = { 0 };
 static int MoveBlockTurn[3] = { 0 };
 static int MoveBlock_X[3] = { 50, 0, 0 };
+int NowBlock[3] = { 0 };
+int KillChar = -1;
+int HitChar = -1;
+int DamageNum = 0;
+int hit = 0;
+int protect = 0;
 
 class BLOCK {
 public:
@@ -51,7 +59,8 @@ struct PlayerInfo {
 	BYTE characterCode;
 	bool jump;
 	BYTE jumpCount;
-	bool collision;
+	bool MCollision;
+	bool CCollision;
 };
 
 PlayerInfo players[MAX_PLAYER];
@@ -64,8 +73,12 @@ PlayerInfo players[MAX_PLAYER];
 
 typedef struct SendStruct {
 	PlayerInfo players[MAX_PLAYER];
-	int Monster_X;
-	int MonsterTurn;
+	int Monster_X[3];
+	int MonsterTurn[3];
+	int MonsterKill[3];
+	int KillChar;
+	int HitChar;
+	int DamageNum;
 	int MoveBlockTurn;
 	int MoveBlock_X;
 } Send;
@@ -100,7 +113,20 @@ void InitPlayer(BYTE player_code)
 	players[player_code].keyPress_D = false;
 	players[player_code].jump = false;
 	players[player_code].jumpCount = 0;
-	players[player_code].collision = true;
+	players[player_code].MCollision = true;
+	players[player_code].CCollision = false;
+}
+
+void InitMonster()
+{
+	for (int i = 0; i < 3; ++i) {
+		if (i != 2) {
+			Monster_X[i] = Block_local[MonsterBlock[i]].x;
+		}
+		else {
+			Monster_X[i] = Block_local[MonsterBlock[i]].x + Block_local[MonsterBlock[i]].width;
+		}
+	}
 }
 
 BYTE RandomCharacter();
@@ -150,10 +176,6 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 
 	static bool jumptemp = false;
 	if (true == players[player_code].jump) {
-		/*if (pCollision[player_code].OnBlock == 1) {
-			players[player_code].jump = false;
-			players[player_code].jumpCount = 0;
-		}*/
 		if (jumptemp) jumptemp = false;
 		else if (!jumptemp) jumptemp = true; 
 
@@ -257,17 +279,17 @@ void SendFile(SOCKET client_sock)
 }
 void Gravity()
 {
-	/*for (int i = 0; i < MAX_PLAYER; ++i) {
-		if (players[i].jump || players[i].collision)
+	for (int i = 0; i < MAX_PLAYER; ++i) {
+		if (players[i].jump || players[i].MCollision || players[i].CCollision)
 			continue;
 		if (players[i].pos.Y >= 620) {
 			players[i].pos.Y = 620;
-			players[i].collision = true;
+			players[i].MCollision = true;
 		}
-		else if (!players[i].collision && players[i].pos.Y < 620) {
-			players[i].pos.Y += 10;
+		else if (!players[i].MCollision && !players[i].CCollision) {
+			players[i].pos.Y += 5;
 		}
-	}*/
+	}
 }
 
 void MapCollision()
@@ -275,13 +297,15 @@ void MapCollision()
 	for (int i = 0; i < MAX_PLAYER; ++i) {
 		for (int j = 0; j < BLOCKNUM - 2; ++j) {
 			if (players[i].pos.X + 40 >= Block_local[j].x && players[i].pos.X + 40 <= Block_local[j].x + Block_local[j].width && 
-				players[i].pos.Y + 70 >= Block_local[j].y && players[i].pos.Y + 70 <= Block_local[j].y + 20) {
+				players[i].pos.Y + 70 >= Block_local[j].y && players[i].pos.Y + 70 <= Block_local[j].y + 30) {
 				players[i].jump = 0;
 				players[i].jumpCount = 0;
-				players[i].collision = true;
+				players[i].MCollision = true;
+				NowBlock[i] = j;
 			}
-			else 
-				players[i].collision = false;
+			if (players[i].pos.X + 40 < Block_local[NowBlock[i]].x || players[i].pos.X + 40 > Block_local[NowBlock[i]].x + Block_local[NowBlock[i]].width) {
+				players[i].MCollision = false;
+			}
 		}
 	}
 }
@@ -294,35 +318,70 @@ void CharacterCollision()
 			if (players[i].pos.X + 40 >= players[j].pos.X && players[i].pos.X + 40 <= players[j].pos.X + 80 &&
 				players[i].pos.Y + 70 <= players[j].pos.Y + 10 && players[i].pos.Y + 70 >= players[j].pos.Y -2) {
 				players[i].jump = 0;
-				players[i].collision = true;
+				players[i].CCollision = true;
 			}
 			else
-				players[i].collision = false;
+				players[i].CCollision = false;
 		}
 	}
 }
 
-void MonsterPos(int num)
+void MonsterCollision()
 {
-	if (num == 0) {
-		if (Monster_X[num] < Block_local[2].x || Monster_X[num] + 72 > Block_local[2].x + Block_local[2].width) {
-			if (Monster_X[num] < Block_local[2].x) {
-				Monster_X[num] = Block_local[2].x;
+	for (int i = 0; i < MAX_PLAYER; ++i) {
+		for (int j = 0; j < 3; ++j) {
+			if (MonsterKill[j] == 0) {
+				if (players[i].jump == 1) {
+					if (players[i].pos.X + 40 >= Monster_X[j] && players[i].pos.X + 40 <= Monster_X[j] + 40 &&
+						players[i].pos.Y + 70 >= Block_local[MonsterBlock[j]].y - 30 && players[i].pos.Y + 70 <= Block_local[MonsterBlock[j]].y) {
+						MonsterKill[j] = 1;
+						KillChar = i;
+					}
+				}
+
+				else {
+					if (/*protect == 0 && */players[i].pos.X + 40 >= Monster_X[j] && players[i].pos.X + 40 <= Monster_X[j] + 40 && players[i].pos.Y + 35 > Block_local[MonsterBlock[j]].y - 30 && players[i].pos.Y + 35 < Block_local[MonsterBlock[j]].y) {
+						HitChar = i;
+						DamageNum = 1;
+						players[i].hp--;
+						
+					}
+
+					/*if (DamageNum == 1) {
+						protect++;
+
+						if (protect == 20) {
+							protect = 0;
+							DamageNum = 0;
+							HitChar = -1;
+						}
+					}*/
+				}
 			}
+		}
+	}
+}
 
-			if (Monster_X[num] + 72 > Block_local[2].x + Block_local[2].width) {
-				Monster_X[num] = Block_local[2].x + Block_local[2].width - 72;
-			}
-			MonsterTurn[num]++;
+void MonsterPos(int num, int pos)
+{
+	if (Monster_X[num] < Block_local[pos].x || Monster_X[num] + 72 > Block_local[pos].x + Block_local[pos].width) {
+		if (Monster_X[num] < Block_local[pos].x) {
+			Monster_X[num] = Block_local[pos].x;
 		}
 
-		if (MonsterTurn[num] % 2 == 0) {
-			Monster_X[num] -= 1;
+		if (Monster_X[num] + 72 > Block_local[pos].x + Block_local[pos].width) {
+			Monster_X[num] = Block_local[pos].x + Block_local[pos].width - 72;
 		}
 
-		else {
-			Monster_X[num] += 1;
-		}
+		MonsterTurn[num]++;
+	}
+
+	if (MonsterTurn[num] % 2 == 0) {
+		Monster_X[num] -= 1;
+	}
+
+	else {
+		Monster_X[num] += 1;
 	}
 }
 
@@ -393,26 +452,9 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	//맵 위치 파일전송
 	SendFile(client_sock);
 
-	retval = recv(client_sock, (char*)&Block_local[2].x, sizeof(Block_local[2].x), MSG_WAITALL);
-	if (retval == SOCKET_ERROR) {
-		EnterCriticalSection(&cs);
-		clientCount--;
-		LeaveCriticalSection(&cs);
-
-		return 1;
-	}
-
-	retval = recv(client_sock, (char*)&Block_local[2].width, sizeof(Block_local[2].width), MSG_WAITALL);
-	if (retval == SOCKET_ERROR) {
-		EnterCriticalSection(&cs);
-		clientCount--;
-		LeaveCriticalSection(&cs);
-
-		return 1;
-	}
-
 	// 캐릭터 초기값 설정
 	InitPlayer(player_code);
+	InitMonster();
 
 	retval = send(client_sock, (char*)&player_code, sizeof(player_code), 0);
 	if (retval == SOCKET_ERROR) {
@@ -423,8 +465,14 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	}
 
 	Send send_struct;
-	send_struct.MonsterTurn = MonsterTurn[0];
-	send_struct.Monster_X = Monster_X[0];
+	for (int i = 0; i < 3; ++i) {
+		send_struct.MonsterTurn[i] = MonsterTurn[i];
+		send_struct.Monster_X[i] = Monster_X[i];
+		send_struct.MonsterKill[i] = MonsterKill[i];
+	}
+	send_struct.KillChar = KillChar;
+	send_struct.HitChar = HitChar;
+	send_struct.DamageNum = DamageNum;
 	send_struct.MoveBlockTurn = MoveBlockTurn[0];
 	send_struct.MoveBlock_X = MoveBlock_X[0];
 	memcpy(send_struct.players, players, sizeof(players));
@@ -467,11 +515,6 @@ DWORD WINAPI RecvThread(LPVOID arg)
 			break;
 		}
 
-		/*retval = recv(client_sock, (char*)&pCollision, sizeof(pCollision), MSG_WAITALL);
-		if (retval == SOCKET_ERROR) {
-			return 1;
-		}*/
-
 		retval = recv(client_sock, (char*)&Switch[0], sizeof(Switch[0]), MSG_WAITALL);
 		if (retval == SOCKET_ERROR) {
 			break;
@@ -479,8 +522,14 @@ DWORD WINAPI RecvThread(LPVOID arg)
 
 		ProcessPacket(msg, player_code);
 
-		send_struct.MonsterTurn = MonsterTurn[0];
-		send_struct.Monster_X = Monster_X[0];
+		for (int i = 0; i < 3; ++i) {
+			send_struct.MonsterTurn[i] = MonsterTurn[i];
+			send_struct.Monster_X[i] = Monster_X[i];
+			send_struct.MonsterKill[i] = MonsterKill[i];
+		}
+		send_struct.KillChar = KillChar;
+		send_struct.HitChar = HitChar;
+		send_struct.DamageNum = DamageNum;
 		send_struct.MoveBlockTurn = MoveBlockTurn[0];
 		send_struct.MoveBlock_X = MoveBlock_X[0];
 		memcpy(send_struct.players, players, sizeof(players));
@@ -489,6 +538,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 		if (retval == SOCKET_ERROR) {
 			break;
 		}
+
 		//printf("Monster_X[0]: %d\n", Monster_X[0]);
 
 		Sleep(20);
@@ -536,10 +586,13 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 		LeaveCriticalSection(&cs);
 
 		EventBlockPos(0);
-		MonsterPos(0);
+		for (int i = 0; i < 3; ++i) {
+			MonsterPos(i, MonsterBlock[i]);
+		}
 		MapCollision();
 		CharacterCollision();
 		Gravity();
+		MonsterCollision();
 
 		CheckGameEnd();
 
