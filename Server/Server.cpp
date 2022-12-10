@@ -23,12 +23,15 @@ static int MonsterKill[3] = { 0 };
 static int Switch[3] = { 0 };
 static int MoveBlockTurn[3] = { 0 };
 static int MoveBlock_X[3] = { 50, 0, 0 };
+int key = 1;
 int NowBlock[3] = { 0 };
 int KillChar = -1;
 int HitChar = -1;
 int DamageNum = 0;
 int hit = 0;
 int protect = 0;
+bool damagetemp;
+bool potal;
 
 class BLOCK {
 public:
@@ -81,6 +84,8 @@ typedef struct SendStruct {
 	int DamageNum;
 	int MoveBlockTurn;
 	int MoveBlock_X;
+	int key;
+	bool potal;
 } Send;
 
 void CheckGameEnd();
@@ -277,6 +282,7 @@ void SendFile(SOCKET client_sock)
 		Block_local[i].read(in);
 	}
 }
+
 void Gravity()
 {
 	for (int i = 0; i < MAX_PLAYER; ++i) {
@@ -306,6 +312,14 @@ void MapCollision()
 			if (players[i].pos.X + 40 < Block_local[NowBlock[i]].x || players[i].pos.X + 40 > Block_local[NowBlock[i]].x + Block_local[NowBlock[i]].width) {
 				players[i].MCollision = false;
 			}
+		}
+		if (key == 0 && players[i].pos.X + 40 >= Block_local[29].x && players[i].pos.X + 40 <= Block_local[29].x + 150 &&
+			players[i].pos.Y + 70 >= Block_local[29].y - 150 && players[i].pos.Y + 70 <= Block_local[29].y + 100) {
+			potal = true;
+		}
+		if (players[i].pos.X + 40 >= Block_local[30].x && players[i].pos.X + 40 <= Block_local[30].x + 50 &&
+			players[i].pos.Y + 70 >= Block_local[30].y && players[i].pos.Y <= Block_local[30].y + 50) {
+			key = 0;
 		}
 	}
 }
@@ -338,24 +352,23 @@ void MonsterCollision()
 						KillChar = i;
 					}
 				}
-
 				else {
-					if (/*protect == 0 && */players[i].pos.X + 40 >= Monster_X[j] && players[i].pos.X + 40 <= Monster_X[j] + 40 && players[i].pos.Y + 35 > Block_local[MonsterBlock[j]].y - 30 && players[i].pos.Y + 35 < Block_local[MonsterBlock[j]].y) {
+					if (protect == 0 && players[i].pos.X + 40 >= Monster_X[j] && players[i].pos.X + 40 <= Monster_X[j] + 40 && 
+						players[i].pos.Y + 70 > Block_local[MonsterBlock[j]].y - 30 && players[i].pos.Y + 35 < Block_local[MonsterBlock[j]].y) {
 						HitChar = i;
-						DamageNum = 1;
+						damagetemp = true;
 						players[i].hp--;
-						
 					}
-
-					/*if (DamageNum == 1) {
+					if (damagetemp) {
+						DamageNum = 1;
 						protect++;
 
-						if (protect == 20) {
+						if (protect == 300) {
 							protect = 0;
-							DamageNum = 0;
+							damagetemp = false;
 							HitChar = -1;
 						}
-					}*/
+					}
 				}
 			}
 		}
@@ -532,6 +545,8 @@ DWORD WINAPI RecvThread(LPVOID arg)
 		send_struct.DamageNum = DamageNum;
 		send_struct.MoveBlockTurn = MoveBlockTurn[0];
 		send_struct.MoveBlock_X = MoveBlock_X[0];
+		send_struct.key = key;
+		send_struct.potal = potal;
 		memcpy(send_struct.players, players, sizeof(players));
 
 		retval = send(client_sock, (char*)&send_struct, sizeof(send_struct), 0);

@@ -74,10 +74,12 @@ int KillChar = 0;
 int HitChar = 0;
 int DamageNum = 0;
 
+static int Key_Image = 1; // Key ��ġ ���� �ʿ�
 static int Key_X;
 static int Key_Y;
 static int Portal_X;		// Portal ��ġ ���� �ʿ�
 static int Portal_Y;
+int potal;
 
 bool gamestart = false;
 bool gameover = false;
@@ -95,6 +97,8 @@ typedef struct RecvStruct {
 	int DamageNum;
 	int MoveBlockTurn;
 	int MoveBlock_X;
+	int key;
+	bool potal;
 } Recv;
 
 void ReadFile(SOCKET sock)
@@ -231,6 +235,8 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 		DamageNum = recv_struct.DamageNum;
 		MoveBlockTurn[0] = recv_struct.MoveBlockTurn;
 		MoveBlock_X[0] = recv_struct.MoveBlock_X;
+		Key_Image = recv_struct.key;
+		potal = recv_struct.potal;
 		memcpy(players, recv_struct.players, sizeof(players));
 	}
 
@@ -341,6 +347,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int bw, bh, gw, gh;
 
 	static int count = 0;
+	static int damagecount = 0;
 
 	static int last;
 
@@ -353,7 +360,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int hit;	//	���� �浹 Ƚ��
 	static int protect;	//	ó�� �浹 �� ���� �ð� ����, ������ ���� ����. �̰� �Ǵ��ϴ� ����
 
-	static int Key_Image = 1;// Key ��ġ ���� �ʿ�
 	static int Heart_Click = 0;
 	static int MapNum = 0;
 
@@ -583,12 +589,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 			//printf("[%d] : (%d, %d) \r", player_code, pos.X, charPos.X);
 
-			if (count != 4) {
-				count++;
-			}
-			if (count == 4) {
-				count = 0;
-			}
+			count = ++count % 4;
+
 			printf("%d\r", pos.X);
 			BackGround.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0 + charPos.X, bh - 1600 + charPos.Y, 2560, 1600);
 			imgGround.Draw(mem1dc, 0 - charPos.X, 130 - charPos.Y, rect.right, rect.bottom, 0, 0, gw, gh);
@@ -807,10 +809,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				Key.Draw(mem1dc, 1170, 0, w_Key * 1 / 2, h_Key * 1 / 2, 0, 0, w_Key, h_Key);
 			}
 
-			if (players[player_code].pos.X >= Key_X - charPos.X && players[player_code].pos.X <= Key_X - charPos.X + w_Key * 1 / 2 && players[player_code].pos.Y >= Key_Y - charPos.Y && players[player_code].pos.Y <= Key_Y + h_Key * 1 / 2) {
-				Key_Image = 0;
-			}
-
 			for (int i = 0; i < MAX_PLAYER; ++i) {
 				if (players[i].left == 0 && players[i].right == 0 && players[i].jump == 0)
 					imgSprite[i].stand[count].Draw(mem1dc, players[i].pos.X - charPos.X, players[i].pos.Y - charPos.Y, imgSprite[i].width_stand[count] / 2, imgSprite[i].height_stand[count] / 2,
@@ -834,17 +832,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				Dialog[Image_Number].Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 			}
 
+			// 2번만 출력되게 바꿔야함
+			damagecount++;
+
 			if (DamageNum == 1) {
-				Damage[count].Draw(mem1dc, players[HitChar].pos.X, players[HitChar].pos.Y, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
+				Damage[count].Draw(mem1dc, players[HitChar].pos.X - charPos.X, players[HitChar].pos.Y - charPos.Y, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
 			}
 
 			for (int i = 0; i < 3; ++i) {
 				if (MonsterKill[i] == 1) {
 					if (KillNum[i] == 1) {
-						Damage[count].Draw(mem1dc, players[KillChar].pos.X, players[KillChar].pos.Y + 70, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
+						Damage[count].Draw(mem1dc, players[KillChar].pos.X - charPos.X, players[KillChar].pos.Y + 70 - charPos.Y, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
 
-						if (count == 9) {	// 원래 9 말고 3
+						if (damagecount == 7) {	// 원래 9 말고 3
 							KillNum[i] = 0;
+							damagecount = 0;
 						}
 					}
 				}
@@ -936,7 +938,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				if (ClearCount == 0) {
 					ClearCount = 1;
 				}
-
 				else ClearCount = 0;
 
 				Clear[ClearCount].Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
@@ -1009,23 +1010,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			EnterCriticalSection(&cs);
 			msg = CS_KEYDOWN_W;
 			LeaveCriticalSection(&cs);
-		}
-
-		/*
-		if (wParam == 'W' || wParam == 'w') {
-			if (x >= Portal_X - charPos.X && x <= Portal_X - charPos.X + w_Portal * 1 / 4) {
+			if (potal) {
 				if (Key_Image == 0) {
 					Image_Number = 7;
 				}
-
-				else if (Image_Number == 8) {
-					Image_Number = 6;
-				}
-
-				else Image_Number = 8;
 			}
+			else if (Image_Number == 8) {
+				Image_Number = 6;
+			}
+			else Image_Number = 8;
 		}
-		*/
+		
 		break;
 
 	case WM_LBUTTONDOWN:
