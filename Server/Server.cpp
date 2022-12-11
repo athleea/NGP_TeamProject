@@ -209,7 +209,7 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 	}
 
 	if (true == players[player_code].keyPress_D) {
-		if (players[player_code].pos.X < 2400) {
+		if (players[player_code].pos.X < 2450) {
 			players[player_code].pos.X += 5;
 		}
 		players[player_code].right = 1;
@@ -463,7 +463,6 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	//맵 위치 파일전송
 	SendFile(client_sock);
 
-	// 캐릭터 초기값 설정
 	InitPlayer(player_code);
 	InitMonster();
 
@@ -583,6 +582,7 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 		LeaveCriticalSection(&cs);
 	}
 
+	Sleep(3000);
 	// 게임 시작
 	SetEvent(gameStartEvent);
 
