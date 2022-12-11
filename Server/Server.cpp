@@ -334,6 +334,22 @@ void MapCollision()
 				players[i].MCollision = false;
 			}
 		}
+
+		for (int i = 0; i < 3; ++i) {
+			for (int j = 0; j < 2; ++j) {
+				if (players[i].pos.X + 40 >= MoveBlock_X[j] && players[i].pos.X + 40 <= MoveBlock_X[j] + Block_local[MoveBlockPos[j]].width &&
+					players[i].pos.Y + 70 >= Block_local[MoveBlockPos[j]].y && players[i].pos.Y + 70 <= Block_local[MoveBlockPos[j]].y + Block_local[MoveBlockPos[j]].width) {
+					Switch[j - 30] = 1;
+					push[j - 30] = i;
+				}
+
+				else if (players[push[j - 30]].pos.X + 40 < MoveBlock_X[j] || players[i].pos.X + 40 > MoveBlock_X[j] + Block_local[MoveBlockPos[j]].width) {
+					Switch[j - 30] = 0;
+					push[j - 30] = -1;
+				}
+			}
+		}
+
 		if (/*key == 0 &&*/ players[i].pos.X + 40 >= Block_local[33].x && players[i].pos.X + 40 <= Block_local[33].x + 150 &&
 			players[i].pos.Y + 70 >= Block_local[33].y - 150 && players[i].pos.Y + 70 <= Block_local[33].y + 100) {
 			potal = true;
