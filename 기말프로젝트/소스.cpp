@@ -56,6 +56,7 @@ struct PlayerInfo {
 	BYTE jumpCount;
 	bool MCollision;
 	bool CCollision;
+	bool ECollision;
 };
 
 BYTE scene_number;

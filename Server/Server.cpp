@@ -68,6 +68,7 @@ struct PlayerInfo {
 	BYTE jumpCount;
 	bool MCollision;
 	bool CCollision;
+	bool ECollision;
 };
 
 PlayerInfo players[MAX_PLAYER];
@@ -339,13 +340,14 @@ void MapCollision()
 			for (int j = 0; j < 2; ++j) {
 				if (players[i].pos.X + 40 >= MoveBlock_X[j] && players[i].pos.X + 40 <= MoveBlock_X[j] + Block_local[MoveBlockPos[j]].width &&
 					players[i].pos.Y + 70 >= Block_local[MoveBlockPos[j]].y && players[i].pos.Y + 70 <= Block_local[MoveBlockPos[j]].y + Block_local[MoveBlockPos[j]].width) {
-					Switch[j - 30] = 1;
-					push[j - 30] = i;
+					players[i].jump = 0;
+					players[i].jumpCount = 0;
+					players[i].ECollision = true;
+					NowBlock[i] = j;
 				}
 
-				else if (players[push[j - 30]].pos.X + 40 < MoveBlock_X[j] || players[i].pos.X + 40 > MoveBlock_X[j] + Block_local[MoveBlockPos[j]].width) {
-					Switch[j - 30] = 0;
-					push[j - 30] = -1;
+				else if (players[i].pos.X + 40 < MoveBlock_X[NowBlock[i]] || players[i].pos.X + 40 > MoveBlock_X[NowBlock[i]] + Block_local[NowBlock[i]].width) {
+					players[i].ECollision = false;
 				}
 			}
 		}
