@@ -16,7 +16,7 @@
 #include "Protocol.h"
 
 #define SERVERIP "127.0.0.1"
-#define BLOCKNUM 31
+#define BLOCKNUM 35
 using namespace std;
 
 LPCTSTR lpszClass = L"Window Class Name";
@@ -150,10 +150,10 @@ void ReadFile(SOCKET sock)
 		Block_local[i].read(in);
 	}
 
-	Portal_X = Block_local[29].x;
-	Portal_Y = Block_local[29].y;
-	Key_X = Block_local[30].x;
-	Key_Y = Block_local[30].y;
+	Portal_X = Block_local[33].x;
+	Portal_Y = Block_local[33].y;
+	Key_X = Block_local[34].x;
+	Key_Y = Block_local[34].y;
 
 	/*cout << Block_local[26].x <<  " " << Block_local[26].y << endl;
 	cout << Block_local[27].x <<  " " << Block_local[27].y << endl;*/
@@ -181,8 +181,6 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	retval = connect(sock, (struct sockaddr*)&serveraddr, sizeof(serveraddr));
 	if (retval == SOCKET_ERROR) return 1;
 
-	ReadFile(sock);
-
 	retval = recv(sock, (char*)&player_code, sizeof(player_code), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) return  1;
 
@@ -191,6 +189,7 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	if (retval == SOCKET_ERROR) {
 		return 1;
 	}
+	
 
 	for (int i = 0; i < 3; ++i) {
 		MonsterTurn[i] = recv_struct.MonsterTurn[i];
@@ -207,6 +206,8 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	memcpy(players, recv_struct.players, sizeof(players));
 
 	SetEvent(hRecvInitData);
+
+	ReadFile(sock);
 
 	EnterCriticalSection(&cs);
 	retval = recv(sock, (char*)&scene_number, sizeof(scene_number), MSG_WAITALL);
@@ -592,7 +593,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			else {
 				Lobby.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 				WaitForSingleObject(hRecvInitData, INFINITE);
-				imgSprite[player_code].stand[count].Draw(mem1dc, 600, 500);
+				imgSprite[player_code].stand[count].Draw(mem1dc, 550, 400);
 				printf("wait..\n");
 			}
 			break;
@@ -618,22 +619,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 			Block.Draw(mem1dc, MoveBlock_X[0] - charPos.X, Block_local[0].y - charPos.Y, Block_local[0].width, 60, 0, 0, w_block, h_block);
 
-			for (int i = 0; i < BLOCKNUM; i++) {
-				if (i < 11 + 2)
+			for (int i = 0; i < BLOCKNUM -2; i++) {
+				if (i < 14)
 					Block.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
-				else if (i < 17 + 2)
+				else if (i < 20)
 					Blockr.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
-				else if (i < 22 + 2)
+				else if (i < 25)
 					Blockg.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
-				else if (i < BLOCKNUM -2)
+				else if (i < 30)
 					Blocko.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
+				else
+					Eblock[0].Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
 			}
-
-
-			SelectObject(mem2dc, hBitmap2);
-
-			//Eblock[0].Draw(mem2dc, 600 - charPos.X, 660 - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
-
 
 
 			if (GetPixel(mem2dc, players[player_code].pos.X + 40, players[player_code].pos.Y + 40) != RGB(254, 0, 0)) {
@@ -645,6 +642,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				Switch[0] = 1;
 				Eblock[1].Draw(mem1dc, 600 - charPos.X, 660 - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
 			}
+
+			SelectObject(mem2dc, hBitmap2);
+
+
 			/*
 			// ���� �̵� �ڵ� (���� ��� x)
 			if (Switch == 1) {
@@ -1034,11 +1035,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 					if (Key_Image == 0) {
 						Image_Number = 7;
 					}
+					else if (Image_Number == 8) {
+						Image_Number = 6;
+					}
+					else Image_Number = 8;
 				}
-				else if (Image_Number == 8) {
-					Image_Number = 6;
-				}
-				else Image_Number = 8;
 			}
 		}
 
