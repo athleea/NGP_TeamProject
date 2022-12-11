@@ -1,5 +1,5 @@
-﻿#define _CRT_SECURE_NO_WARNINGS // ���� C �Լ� ��� �� ��� ����
-#define _WINSOCK_DEPRECATED_NO_WARNINGS // ���� ���� API ��� �� ��� ����
+﻿#define _CRT_SECURE_NO_WARNINGS
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
 
 #ifdef _DEBUG
 #pragma comment(linker, "/entry:WinMainCRTStartup /subsystem:console" )
@@ -25,7 +25,6 @@ LPCTSTR lpszWindowName = L"windows program";
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
 DWORD WINAPI CommunicationThread(LPVOID);
 
-HANDLE hRecvEvent, hRenderEvent, hFileEvent, hKeyInputEvent;
 char buf[BUFSIZE];
 
 struct BLOCK {
@@ -58,6 +57,8 @@ struct PlayerInfo {
 	bool MCollision;
 	bool CCollision;
 };
+
+BYTE scene_number;
 CRITICAL_SECTION cs;
 PlayerInfo players[MAX_PLAYER];
 BYTE msg = 0;
@@ -99,6 +100,7 @@ typedef struct RecvStruct {
 	int MoveBlock_X;
 	int key;
 	bool potal;
+	BYTE sceneNumber;
 } Recv;
 
 void ReadFile(SOCKET sock)
@@ -110,7 +112,6 @@ void ReadFile(SOCKET sock)
 	if (ret == SOCKET_ERROR) {
 		err_display("recv()");
 	}
-	printf("size : %d\n", f_size);
 	FILE* ff;
 	ff = fopen("mappos.txt", "wb");
 	if (NULL == ff) {
@@ -128,7 +129,7 @@ void ReadFile(SOCKET sock)
 				buf_size = f_size - sum;
 			}
 			ret = recv(sock, buf, buf_size, MSG_WAITALL);
-			printf("recv : %d, buf_size : %d\n", ret, buf_size);
+
 			sum += ret;
 
 			fwrite(buf, sizeof(char), ret, ff);
@@ -159,6 +160,8 @@ void ReadFile(SOCKET sock)
 
 }
 
+Recv recv_struct;
+
 DWORD WINAPI CommunicationThread(LPVOID arg)
 {
 	WSAData wsa;
@@ -173,17 +176,16 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	serveraddr.sin_family = AF_INET;
 	inet_pton(AF_INET, SERVERIP, &serveraddr.sin_addr);
 	serveraddr.sin_port = htons(SERVERPORT);
+
 	retval = connect(sock, (struct sockaddr*)&serveraddr, sizeof(serveraddr));
 	if (retval == SOCKET_ERROR) return 1;
 
-	//�� ��ġ ���ϼ���
 	ReadFile(sock);
 
-	// ĳ���� �ڵ� �� �ʱⰪ �ޱ�
 	retval = recv(sock, (char*)&player_code, sizeof(player_code), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) return  1;
 
-	Recv recv_struct;
+
 	retval = recv(sock, (char*)&recv_struct, sizeof(recv_struct), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) {
 		return 1;
@@ -194,23 +196,24 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 		Monster_X[i] = recv_struct.Monster_X[i];
 		MonsterKill[i] = recv_struct.MonsterKill[i];
 	}
+
 	KillChar = recv_struct.KillChar;
 	HitChar = recv_struct.HitChar;
 	DamageNum = recv_struct.DamageNum;
 	MoveBlockTurn[0] = recv_struct.MoveBlockTurn;
 	MoveBlock_X[0] = recv_struct.MoveBlock_X;
+	scene_number = recv_struct.sceneNumber;
 	memcpy(players, recv_struct.players, sizeof(players));
 
 	EnterCriticalSection(&cs);
-	retval = recv(sock, (char*)&gamestart, sizeof(gamestart), MSG_WAITALL);
+	retval = recv(sock, (char*)&scene_number, sizeof(scene_number), MSG_WAITALL);
 	LeaveCriticalSection(&cs);
-
 	if (retval == SOCKET_ERROR) return  1;
-	printf("code : %d\n", player_code);
 
-
-	while (gameover == false) {
+	while (1) {
+		EnterCriticalSection(&cs);
 		retval = send(sock, (char*)&msg, sizeof(msg), 0);
+		LeaveCriticalSection(&cs);
 		if (retval == SOCKET_ERROR) {
 			break;
 		}
@@ -237,12 +240,15 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 		MoveBlock_X[0] = recv_struct.MoveBlock_X;
 		Key_Image = recv_struct.key;
 		potal = recv_struct.potal;
+		scene_number = recv_struct.sceneNumber;
 		memcpy(players, recv_struct.players, sizeof(players));
+
+		if (scene_number == 2)
+			break;
 	}
 
-	retval = recv(sock, (char*)&gameover, sizeof(gameover), MSG_WAITALL);
-
 	//Exit
+	printf("close\n");
 	closesocket(sock);
 	WSACleanup();
 }
@@ -283,9 +289,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	);
 
 	InitializeCriticalSection(&cs);
-
-	hFileEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-	hKeyInputEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
 	HANDLE hThread = CreateThread(NULL, 0, CommunicationThread, NULL, 0, NULL);
 	ShowWindow(hWnd, nCmdShow);
@@ -468,7 +471,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		Monster_R[2].Load(L"monster-R3.png");
 		Monster_R[3].Load(L"monster-R4.png");
 
-		Guide.Load(L"�ָ�.png");
+		Guide.Load(L"팻말.png");
 		Guide2.Load(L"Guide2.png");
 		Heart.Load(L"heart.png");
 		Key.Load(L"key.png");
@@ -576,22 +579,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 		SelectObject(mem1dc, hBitmap);
 
-		if (gamestart == false)
+		switch (scene_number)
+		{
+		case 0:	// 접속대기
 			Start.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
-		else if (gamestart == true) {
+			break;
+		case 1:	// 게임시작
 			pos = players[player_code].pos;
-			charPos = players[player_code].charPos;
 			left = players[player_code].left;
 			right = players[player_code].right;
 			jump = players[player_code].jump;
 			jumpCount = players[player_code].jumpCount;
 			hp = players[player_code].hp;
 
+			charPos.X = clamp(0, pos.X - 640, 1280);
+			charPos.Y = clamp(-1200, pos.Y - 620, 620);
+
 			//printf("[%d] : (%d, %d) \r", player_code, pos.X, charPos.X);
 
 			count = ++count % 4;
 
-			printf("%d\r", pos.X);
 			BackGround.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0 + charPos.X, bh - 1600 + charPos.Y, 2560, 1600);
 			imgGround.Draw(mem1dc, 0 - charPos.X, 130 - charPos.Y, rect.right, rect.bottom, 0, 0, gw, gh);
 			imgGround.Draw(mem1dc, rect.right - charPos.X, 130 - charPos.Y, rect.right, rect.bottom, 0, 0, gw, gh);
@@ -603,14 +610,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			Block.Draw(mem1dc, MoveBlock_X[0] - charPos.X, Block_local[0].y - charPos.Y, Block_local[0].width, 60, 0, 0, w_block, h_block);
 
 			for (int i = 0; i < BLOCKNUM; i++) {
-				if (i < 11 +2)
-					Block.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);	// ����-
-				else if (i < 17 +2)
+				if (i < 11 + 2)
+					Block.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
+				else if (i < 17 + 2)
 					Blockr.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
-				else if (i < 22 +2)
+				else if (i < 22 + 2)
 					Blockg.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
-				else
-					Blocko.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
+				//else
+					//Blocko.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
 			}
 
 
@@ -801,7 +808,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 					Monster2_X += 5;
 				}
 			}*/
-			
+
 			if (Key_Image == 1)
 				Key.Draw(mem1dc, Key_X - charPos.X, Key_Y - charPos.Y, w_Key * 1 / 2, h_Key * 1 / 2, 0, 0, w_Key, h_Key);
 
@@ -946,9 +953,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			if (Image_Number == 8) {
 				Guide2.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 			}
-		}
-		else if (gameover == true) {
+			break;
+		case 2:	// 게임종료
 			GameOver.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
+			break;
+		default:
+			break;
 		}
 
 		BitBlt(hdc, 0, 0, rect.right, rect.bottom, mem1dc, 0, 0, SRCCOPY);
@@ -1020,7 +1030,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			}
 			else Image_Number = 8;
 		}
-		
+
 		break;
 
 	case WM_LBUTTONDOWN:

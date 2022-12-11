@@ -86,6 +86,7 @@ typedef struct SendStruct {
 	int MoveBlock_X;
 	int key;
 	bool potal;
+	BYTE sceneNumber;
 } Send;
 
 void CheckGameEnd();
@@ -182,7 +183,7 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 	static bool jumptemp = false;
 	if (true == players[player_code].jump) {
 		if (jumptemp) jumptemp = false;
-		else if (!jumptemp) jumptemp = true; 
+		else if (!jumptemp) jumptemp = true;
 
 		if (jumptemp)
 			players[player_code].jumpCount++;
@@ -216,9 +217,6 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 	else {
 		players[player_code].right = 0;
 	}
-
-	players[player_code].charPos.X = clamp(0, players[player_code].pos.X - 640, 1280);
-	players[player_code].charPos.Y = clamp(-1200, players[player_code].pos.Y - 620, 620);
 
 	LeaveCriticalSection(&cs);
 }
@@ -302,7 +300,7 @@ void MapCollision()
 {
 	for (int i = 0; i < MAX_PLAYER; ++i) {
 		for (int j = 0; j < BLOCKNUM - 2; ++j) {
-			if (players[i].pos.X + 40 >= Block_local[j].x && players[i].pos.X + 40 <= Block_local[j].x + Block_local[j].width && 
+			if (players[i].pos.X + 40 >= Block_local[j].x && players[i].pos.X + 40 <= Block_local[j].x + Block_local[j].width &&
 				players[i].pos.Y + 70 >= Block_local[j].y && players[i].pos.Y + 70 <= Block_local[j].y + 30) {
 				players[i].jump = 0;
 				players[i].jumpCount = 0;
@@ -330,7 +328,7 @@ void CharacterCollision()
 		for (int j = 0; j < MAX_PLAYER; ++j) {
 			if (i == j) continue;
 			if (players[i].pos.X + 40 >= players[j].pos.X && players[i].pos.X + 40 <= players[j].pos.X + 80 &&
-				players[i].pos.Y + 70 <= players[j].pos.Y + 10 && players[i].pos.Y + 70 >= players[j].pos.Y -2) {
+				players[i].pos.Y + 70 <= players[j].pos.Y + 10 && players[i].pos.Y + 70 >= players[j].pos.Y - 2) {
 				players[i].jump = 0;
 				players[i].CCollision = true;
 			}
@@ -353,7 +351,7 @@ void MonsterCollision()
 					}
 				}
 				else {
-					if (protect == 0 && players[i].pos.X + 40 >= Monster_X[j] && players[i].pos.X + 40 <= Monster_X[j] + 40 && 
+					if (protect == 0 && players[i].pos.X + 40 >= Monster_X[j] && players[i].pos.X + 40 <= Monster_X[j] + 40 &&
 						players[i].pos.Y + 70 > Block_local[MonsterBlock[j]].y - 30 && players[i].pos.Y + 35 < Block_local[MonsterBlock[j]].y) {
 						HitChar = i;
 						damagetemp = true;
@@ -488,6 +486,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	send_struct.DamageNum = DamageNum;
 	send_struct.MoveBlockTurn = MoveBlockTurn[0];
 	send_struct.MoveBlock_X = MoveBlock_X[0];
+	send_struct.sceneNumber = 0;
 	memcpy(send_struct.players, players, sizeof(players));
 
 	retval = send(client_sock, (char*)&send_struct, sizeof(send_struct), 0);
@@ -498,33 +497,28 @@ DWORD WINAPI RecvThread(LPVOID arg)
 		return 1;
 	}
 
-
 	EnterCriticalSection(&cs);
 	ready++;
 	LeaveCriticalSection(&cs);
 
 
 	// 3명 접속까지 대기
-	//WaitForSingleObject(gameStartEvent, INFINITE);
+	WaitForSingleObject(gameStartEvent, INFINITE);
 
-	bool gamestart = true;
-	retval = send(client_sock, (char*)&gamestart, sizeof(gamestart), 0);
+	send_struct.sceneNumber = 1;
+
+	retval = send(client_sock, (char*)&send_struct.sceneNumber, sizeof(send_struct.sceneNumber), 0);
 	if (retval == SOCKET_ERROR) {
 		EnterCriticalSection(&cs);
 		clientCount--;
 		LeaveCriticalSection(&cs);
 		return 1;
 	}
-	//게임 시작
-	printf("%d : gamestart\n", gamestart);
 
-	while (false == gameover) {  // 1 -> checkGameEnd()
+	while (1) {
 		// 키입력 Recv
 		retval = recv(client_sock, (char*)&msg, sizeof(msg), MSG_WAITALL);
 		if (retval == SOCKET_ERROR) {
-			break;
-		}
-		else if (retval == 0) {
 			break;
 		}
 
@@ -550,7 +544,15 @@ DWORD WINAPI RecvThread(LPVOID arg)
 		memcpy(send_struct.players, players, sizeof(players));
 
 		retval = send(client_sock, (char*)&send_struct, sizeof(send_struct), 0);
+
 		if (retval == SOCKET_ERROR) {
+			break;
+		}
+
+		if (gameover == true) {
+			send_struct.sceneNumber = 2;
+			retval = send(client_sock, (char*)&send_struct, sizeof(send_struct), 0);
+			printf("gameover\n");
 			break;
 		}
 
@@ -558,8 +560,6 @@ DWORD WINAPI RecvThread(LPVOID arg)
 
 		Sleep(20);
 	}
-
-	retval = send(client_sock, (char*)&gameover, sizeof(gameover), 0);
 
 	ResetEvent(gameStartEvent);
 	EnterCriticalSection(&cs);
@@ -585,14 +585,8 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 
 	// 게임 시작
 	SetEvent(gameStartEvent);
-	printf("GameStart \n");
-	bool flag = false;
 
-	EnterCriticalSection(&cs);
-	gameover = false;
-	LeaveCriticalSection(&cs);
-
-	while (false == flag) { // CheckGameEnd()
+	while (1) { // CheckGameEnd()
 		EnterCriticalSection(&cs);
 		if (clientCount != 3) {
 			LeaveCriticalSection(&cs);
