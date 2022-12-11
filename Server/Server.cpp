@@ -21,8 +21,12 @@ static int MonsterTurn[3] = { 0, 0, 1 };
 static int MonsterBlock[3] = { 2,6,9 };
 static int MonsterKill[3] = { 0 };
 static int Switch[3] = { 0 };
-static int MoveBlockTurn[3] = { 0 };
-static int MoveBlock_X[3] = { 50, 0, 0 };
+static int MoveBlockTurn[2] = { 0, 1 };
+static int MoveBlock_X[2] = { 0 };
+static int MoveBlockDis_L[2] = { 1400,1400 };
+static int MoveBlockDis_R[2] = { 2200,2500 };
+static int MoveBlockPos[2] = { 17,25 };
+int push[3] = { -1,-1,-1 };
 int key = 1;
 int NowBlock[3] = { 0 };
 int KillChar = -1;
@@ -82,8 +86,9 @@ typedef struct SendStruct {
 	int KillChar;
 	int HitChar;
 	int DamageNum;
-	int MoveBlockTurn;
-	int MoveBlock_X;
+	int Switch[3];
+	int MoveBlockTurn[2];
+	int MoveBlock_X[2];
 	int key;
 	bool potal;
 	BYTE sceneNumber;
@@ -132,6 +137,13 @@ void InitMonster()
 		else {
 			Monster_X[i] = Block_local[MonsterBlock[i]].x + Block_local[MonsterBlock[i]].width;
 		}
+	}
+}
+
+void InitMoveBlock()
+{
+	for (int i = 0; i < 2; ++i) {
+		MoveBlock_X[i] = Block_local[MoveBlockPos[i]].x;
 	}
 }
 
@@ -330,6 +342,23 @@ void MapCollision()
 			players[i].pos.Y + 70 >= Block_local[34].y && players[i].pos.Y <= Block_local[34].y + 50) {
 			key = 0;
 		}
+
+		for (int i = 0; i < 3; ++i) {
+			for (int j = 30; j < 33; ++j) {
+				if (Switch[j - 30] == 0) {
+					if (players[i].pos.X + 40 >= Block_local[j].x && players[i].pos.X + 40 <= Block_local[j].x + 35 &&
+						players[i].pos.Y + 70 >= Block_local[j].y && players[i].pos.Y + 70 <= Block_local[j].y + 35) {
+						Switch[j - 30] = 1;
+						push[j - 30] = i;
+					}
+				}
+
+				else if (players[push[j - 30]].pos.X + 40 < Block_local[j].x || players[i].pos.X + 40 > Block_local[j].x + 35) {
+					Switch[j - 30] = 0;
+					push[j - 30] = -1;
+				}
+			}
+		}
 	}
 }
 
@@ -407,10 +436,9 @@ void MonsterPos(int num, int pos)
 	}
 }
 
-void EventBlockPos(int num)
+void EventBlockPos(int num, int dis_l, int dis_r)
 {
-	if (num == 0) {
-		/*if (Switch[num] == 1) {
+	/*if (Switch[num] == 1) {
 			if (MoveBlockTurn[num] % 2 == 0) {
 				if (MoveBlock_X[num] - players[player_code].charPos.X >= 0) {
 					MoveBlock_X[num] -= 1;
@@ -431,24 +459,23 @@ void EventBlockPos(int num)
 				}
 			}
 		}*/
-		if (MoveBlockTurn[num] % 2 == 0) {
-			if (MoveBlock_X[num] >= 0) {
-				MoveBlock_X[num] -= 1;
-			}
-
-			else {
-				MoveBlockTurn[num]++;
-			}
+	if (MoveBlockTurn[num] % 2 == 0) {
+		if (MoveBlock_X[num] >= dis_l) {
+			MoveBlock_X[num] -= 1;
 		}
 
 		else {
-			if (MoveBlock_X[num] <= 1000) {
-				MoveBlock_X[num] += 1;
-			}
+			MoveBlockTurn[num]++;
+		}
+	}
 
-			else {
-				MoveBlockTurn[num]++;
-			}
+	else {
+		if (MoveBlock_X[num] <= dis_r) {
+			MoveBlock_X[num] += 1;
+		}
+
+		else {
+			MoveBlockTurn[num]++;
 		}
 	}
 }
@@ -491,8 +518,13 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	send_struct.KillChar = KillChar;
 	send_struct.HitChar = HitChar;
 	send_struct.DamageNum = DamageNum;
-	send_struct.MoveBlockTurn = MoveBlockTurn[0];
-	send_struct.MoveBlock_X = MoveBlock_X[0];
+	for (int i = 0; i < 3; ++i) {
+		send_struct.Switch[i] = Switch[i];
+	}
+	for (int i = 0; i < 2; ++i) {
+		send_struct.MoveBlockTurn[i] = MoveBlockTurn[i];
+		send_struct.MoveBlock_X[i] = MoveBlock_X[i];
+	}
 	send_struct.sceneNumber = 0;
 	memcpy(send_struct.players, players, sizeof(players));
 
@@ -507,6 +539,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	//맵 위치 파일전송
 	SendFile(client_sock);
 	InitMonster();
+	InitMoveBlock();
 
 	EnterCriticalSection(&cs);
 	ready++;
@@ -533,11 +566,6 @@ DWORD WINAPI RecvThread(LPVOID arg)
 			break;
 		}
 
-		retval = recv(client_sock, (char*)&Switch[0], sizeof(Switch[0]), MSG_WAITALL);
-		if (retval == SOCKET_ERROR) {
-			break;
-		}
-
 		ProcessPacket(msg, player_code);
 
 		for (int i = 0; i < 3; ++i) {
@@ -548,8 +576,13 @@ DWORD WINAPI RecvThread(LPVOID arg)
 		send_struct.KillChar = KillChar;
 		send_struct.HitChar = HitChar;
 		send_struct.DamageNum = DamageNum;
-		send_struct.MoveBlockTurn = MoveBlockTurn[0];
-		send_struct.MoveBlock_X = MoveBlock_X[0];
+		for (int i = 0; i < 3; ++i) {
+			send_struct.Switch[i] = Switch[i];
+		}
+		for (int i = 0; i < 2; ++i) {
+			send_struct.MoveBlockTurn[i] = MoveBlockTurn[i];
+			send_struct.MoveBlock_X[i] = MoveBlock_X[i];
+		}
 		send_struct.key = key;
 		send_struct.potal = potal;
 		memcpy(send_struct.players, players, sizeof(players));
@@ -606,7 +639,14 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 		}
 		LeaveCriticalSection(&cs);
 
-		EventBlockPos(0);
+		if (Switch[0] != 0 || Switch[1] != 0) {
+			EventBlockPos(1, MoveBlockDis_L[1], MoveBlockDis_R[1]);
+		}
+
+		if (Switch[2] != 0) {
+			EventBlockPos(0, MoveBlockDis_L[0], MoveBlockDis_R[0]);
+		}
+		
 		for (int i = 0; i < 3; ++i) {
 			MonsterPos(i, MonsterBlock[i]);
 		}

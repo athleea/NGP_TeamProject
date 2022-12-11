@@ -71,6 +71,7 @@ static int MonsterKill[3] = { 0 };
 static int Switch[3] = { 0 };
 static int MoveBlockTurn[3] = { 0 };
 static int MoveBlock_X[3] = { 0 };
+static int MoveBlockPos[2] = { 17,25 };
 int KillChar = 0;
 int HitChar = 0;
 int DamageNum = 0;
@@ -96,8 +97,9 @@ typedef struct RecvStruct {
 	int KillChar;
 	int HitChar;
 	int DamageNum;
-	int MoveBlockTurn;
-	int MoveBlock_X;
+	int Switch[3];
+	int MoveBlockTurn[2];
+	int MoveBlock_X[2];
 	int key;
 	bool potal;
 	BYTE sceneNumber;
@@ -200,8 +202,16 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	KillChar = recv_struct.KillChar;
 	HitChar = recv_struct.HitChar;
 	DamageNum = recv_struct.DamageNum;
-	MoveBlockTurn[0] = recv_struct.MoveBlockTurn;
-	MoveBlock_X[0] = recv_struct.MoveBlock_X;
+
+	for (int i = 0; i < 3; ++i) {
+		Switch[i] = recv_struct.Switch[i];
+	}
+
+	for (int i = 0; i < 2; ++i) {
+		MoveBlockTurn[i] = recv_struct.MoveBlockTurn[i];
+		MoveBlock_X[i] = recv_struct.MoveBlock_X[i];
+	}
+	
 	scene_number = recv_struct.sceneNumber;
 	memcpy(players, recv_struct.players, sizeof(players));
 
@@ -222,11 +232,6 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 			break;
 		}
 
-		retval = send(sock, (char*)&Switch[0], sizeof(Switch[0]), 0);
-		if (retval == SOCKET_ERROR) {
-			break;
-		}
-
 		retval = recv(sock, (char*)&recv_struct, sizeof(recv_struct), MSG_WAITALL);
 		if (retval == SOCKET_ERROR) {
 			break;
@@ -240,8 +245,13 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 		KillChar = recv_struct.KillChar;
 		HitChar = recv_struct.HitChar;
 		DamageNum = recv_struct.DamageNum;
-		MoveBlockTurn[0] = recv_struct.MoveBlockTurn;
-		MoveBlock_X[0] = recv_struct.MoveBlock_X;
+		for (int i = 0; i < 3; ++i) {
+			Switch[i] = recv_struct.Switch[i];
+		}
+		for (int i = 0; i < 2; ++i) {
+			MoveBlockTurn[i] = recv_struct.MoveBlockTurn[i];
+			MoveBlock_X[i] = recv_struct.MoveBlock_X[i];
+		}
 		Key_Image = recv_struct.key;
 		potal = recv_struct.potal;
 		scene_number = recv_struct.sceneNumber;
@@ -617,23 +627,52 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			Guide.Draw(mem1dc, 750 - charPos.X, 590 - charPos.Y, w_guide * 2 / 3, h_guide * 2 / 3, 0, 0, w_guide, h_guide);
 			Portal.Draw(mem1dc, Portal_X - charPos.X, Portal_Y - charPos.Y - h_Portal * 1 / 4, w_Portal * 1 / 4, h_Portal * 1 / 4, 0, 0, w_Portal, h_Portal);
 
-			Block.Draw(mem1dc, MoveBlock_X[0] - charPos.X, Block_local[0].y - charPos.Y, Block_local[0].width, 60, 0, 0, w_block, h_block);
+			printf("Switch[2]: %d\n", &Switch[2]);
+
+			for (int i = 0; i < 2; ++i) {
+				if (i == 0) {
+					Blockr.Draw(mem1dc, MoveBlock_X[i] - charPos.X, Block_local[MoveBlockPos[i]].y - charPos.Y, Block_local[MoveBlockPos[i]].width, 60, 0, 0, w_block, h_block);
+				}
+
+				else {
+					Blocko.Draw(mem1dc, MoveBlock_X[i] - charPos.X, Block_local[MoveBlockPos[i]].y - charPos.Y, Block_local[MoveBlockPos[i]].width, 60, 0, 0, w_block, h_block);
+				}
+			}
+
+			/*for (int i = 0; i < 2; ++i) {
+				if (i == 0 && Switch[2] != 0) {
+					Blockr.Draw(mem1dc, MoveBlock_X[i] - charPos.X, Block_local[MoveBlockPos[i]].y - charPos.Y, Block_local[MoveBlockPos[i]].width, 60, 0, 0, w_block, h_block);
+				}
+
+				else {
+					if (Switch[0] != 0 || Switch[1] != 0) {
+						Blocko.Draw(mem1dc, MoveBlock_X[i] - charPos.X, Block_local[MoveBlockPos[i]].y - charPos.Y, Block_local[MoveBlockPos[i]].width, 60, 0, 0, w_block, h_block);
+					}
+				}
+			}*/
 
 			for (int i = 0; i < BLOCKNUM -2; i++) {
 				if (i < 14)
 					Block.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
-				else if (i < 20)
+				else if ((i >= 14 && i < 17) || (i > 17 && i < 20))
 					Blockr.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
-				else if (i < 25)
+				else if (i < 25 && i != 17)
 					Blockg.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
-				else if (i < 30)
+				else if (i > 25 && i < 30)
 					Blocko.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
-				else
-					Eblock[0].Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
+				else {
+					if (i >= 30 && Switch[i - 30] == 0) {
+						Eblock[0].Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
+					}
+
+					else if (i >= 30 && Switch[i - 30] == 1) {
+						Eblock[1].Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
+					}
+				}
 			}
 
 
-			if (GetPixel(mem2dc, players[player_code].pos.X + 40, players[player_code].pos.Y + 40) != RGB(254, 0, 0)) {
+			/*if (GetPixel(mem2dc, players[player_code].pos.X + 40, players[player_code].pos.Y + 40) != RGB(254, 0, 0)) {
 				Switch[0] = 0;
 				Eblock[0].Draw(mem1dc, 600 - charPos.X, 660 - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
 			}
@@ -641,7 +680,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			else if (GetPixel(mem2dc, players[player_code].pos.X + 40, players[player_code].pos.Y) == RGB(254, 0, 0)) {
 				Switch[0] = 1;
 				Eblock[1].Draw(mem1dc, 600 - charPos.X, 660 - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
-			}
+			}*/
 
 			SelectObject(mem2dc, hBitmap2);
 
