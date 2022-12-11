@@ -5,7 +5,7 @@
 #include <iostream>
 using namespace std;
 
-#define BLOCKNUM 31
+#define BLOCKNUM 35
 
 int clientCount = 0;
 FILE* fp;
@@ -300,6 +300,17 @@ void MapCollision()
 {
 	for (int i = 0; i < MAX_PLAYER; ++i) {
 		for (int j = 0; j < BLOCKNUM - 2; ++j) {
+			if (j < 14) {}
+			else if (j < 20) {
+				if (i != 0) continue;
+			}
+			else if (j < 25) {
+				if (i != 2) continue;
+			}
+			else {
+				if (i != 1) continue;
+			}
+
 			if (players[i].pos.X + 40 >= Block_local[j].x && players[i].pos.X + 40 <= Block_local[j].x + Block_local[j].width &&
 				players[i].pos.Y + 70 >= Block_local[j].y && players[i].pos.Y + 70 <= Block_local[j].y + 30) {
 				players[i].jump = 0;
@@ -311,12 +322,12 @@ void MapCollision()
 				players[i].MCollision = false;
 			}
 		}
-		if (key == 0 && players[i].pos.X + 40 >= Block_local[29].x && players[i].pos.X + 40 <= Block_local[29].x + 150 &&
-			players[i].pos.Y + 70 >= Block_local[29].y - 150 && players[i].pos.Y + 70 <= Block_local[29].y + 100) {
+		if (/*key == 0 &&*/ players[i].pos.X + 40 >= Block_local[33].x && players[i].pos.X + 40 <= Block_local[33].x + 150 &&
+			players[i].pos.Y + 70 >= Block_local[33].y - 150 && players[i].pos.Y + 70 <= Block_local[33].y + 100) {
 			potal = true;
 		}
-		if (players[i].pos.X + 40 >= Block_local[30].x && players[i].pos.X + 40 <= Block_local[30].x + 50 &&
-			players[i].pos.Y + 70 >= Block_local[30].y && players[i].pos.Y <= Block_local[30].y + 50) {
+		if (players[i].pos.X + 40 >= Block_local[34].x && players[i].pos.X + 40 <= Block_local[34].x + 50 &&
+			players[i].pos.Y + 70 >= Block_local[34].y && players[i].pos.Y <= Block_local[34].y + 50) {
 			key = 0;
 		}
 	}
@@ -327,8 +338,8 @@ void CharacterCollision()
 	for (int i = 0; i < MAX_PLAYER; ++i) {
 		for (int j = 0; j < MAX_PLAYER; ++j) {
 			if (i == j) continue;
-			if (players[i].pos.X + 40 >= players[j].pos.X && players[i].pos.X + 40 <= players[j].pos.X + 80 &&
-				players[i].pos.Y + 70 <= players[j].pos.Y + 10 && players[i].pos.Y + 70 >= players[j].pos.Y - 2) {
+			if (players[i].pos.X + 40 >= players[j].pos.X && players[i].pos.X + 40 <= players[j].pos.X + 100 &&
+				players[i].pos.Y + 70 <= players[j].pos.Y + 30 && players[i].pos.Y + 70 >= players[j].pos.Y - 2) {
 				players[i].jump = 0;
 				players[i].CCollision = true;
 			}
@@ -460,11 +471,8 @@ DWORD WINAPI RecvThread(LPVOID arg)
 
 	sockManager[player_code] = client_sock;
 
-	//맵 위치 파일전송
-	SendFile(client_sock);
 
 	InitPlayer(player_code);
-	InitMonster();
 
 	retval = send(client_sock, (char*)&player_code, sizeof(player_code), 0);
 	if (retval == SOCKET_ERROR) {
@@ -495,6 +503,10 @@ DWORD WINAPI RecvThread(LPVOID arg)
 		LeaveCriticalSection(&cs);
 		return 1;
 	}
+
+	//맵 위치 파일전송
+	SendFile(client_sock);
+	InitMonster();
 
 	EnterCriticalSection(&cs);
 	ready++;
