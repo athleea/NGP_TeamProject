@@ -29,6 +29,7 @@ static int MoveBlockPos[2] = { 17,25 };
 int push[3] = { -1,-1,-1 };
 int key = 1;
 int NowBlock[3] = { 0 };
+int NowEblock[3] = { 0 };
 int KillChar = -1;
 int HitChar = -1;
 int DamageNum = 0;
@@ -134,10 +135,14 @@ void InitMonster()
 	for (int i = 0; i < 3; ++i) {
 		if (i != 2) {
 			Monster_X[i] = Block_local[MonsterBlock[i]].x;
+			MonsterTurn[i] = 0;
 		}
 		else {
 			Monster_X[i] = Block_local[MonsterBlock[i]].x + Block_local[MonsterBlock[i]].width;
+			MonsterTurn[i] = 1;
 		}
+
+		MonsterKill[i] = 0;
 	}
 }
 
@@ -145,6 +150,7 @@ void InitMoveBlock()
 {
 	for (int i = 0; i < 2; ++i) {
 		MoveBlock_X[i] = Block_local[MoveBlockPos[i]].x;
+		MoveBlockTurn[i] = i;
 	}
 }
 
@@ -297,13 +303,13 @@ void SendFile(SOCKET client_sock)
 void Gravity()
 {
 	for (int i = 0; i < MAX_PLAYER; ++i) {
-		if (players[i].jump || players[i].MCollision || players[i].CCollision)
+		if (players[i].jump || players[i].MCollision || players[i].CCollision || players[i].ECollision)
 			continue;
 		if (players[i].pos.Y >= 620) {
 			players[i].pos.Y = 620;
 			players[i].MCollision = true;
 		}
-		else if (!players[i].MCollision && !players[i].CCollision) {
+		else if (!players[i].MCollision && !players[i].CCollision && !players[i].ECollision) {
 			players[i].pos.Y += 5;
 		}
 	}
@@ -336,19 +342,17 @@ void MapCollision()
 			}
 		}
 
-		for (int i = 0; i < 3; ++i) {
-			for (int j = 0; j < 2; ++j) {
-				if (players[i].pos.X + 40 >= MoveBlock_X[j] && players[i].pos.X + 40 <= MoveBlock_X[j] + Block_local[MoveBlockPos[j]].width &&
-					players[i].pos.Y + 70 >= Block_local[MoveBlockPos[j]].y && players[i].pos.Y + 70 <= Block_local[MoveBlockPos[j]].y + Block_local[MoveBlockPos[j]].width) {
-					players[i].jump = 0;
-					players[i].jumpCount = 0;
-					players[i].ECollision = true;
-					NowBlock[i] = j;
-				}
+		for (int j = 0; j < 2; ++j) {
+			if (players[i].pos.X + 40 >= MoveBlock_X[j] && players[i].pos.X + 40 <= MoveBlock_X[j] + Block_local[MoveBlockPos[j]].width &&
+				players[i].pos.Y + 70 >= Block_local[MoveBlockPos[j]].y && players[i].pos.Y + 70 <= Block_local[MoveBlockPos[j]].y + Block_local[MoveBlockPos[j]].width) {
+				players[i].jump = 0;
+				players[i].jumpCount = 0;
+				players[i].ECollision = true;
+				NowEblock[i] = j;
+			}
 
-				else if (players[i].pos.X + 40 < MoveBlock_X[NowBlock[i]] || players[i].pos.X + 40 > MoveBlock_X[NowBlock[i]] + Block_local[NowBlock[i]].width) {
-					players[i].ECollision = false;
-				}
+			else if (players[i].pos.X + 40 < MoveBlock_X[NowEblock[i]] || players[i].pos.X + 40 > MoveBlock_X[NowEblock[i]] + Block_local[MoveBlockPos[NowEblock[i]]].width) {
+				players[i].ECollision = false;
 			}
 		}
 
@@ -361,20 +365,18 @@ void MapCollision()
 			key = 0;
 		}
 
-		for (int i = 0; i < 3; ++i) {
-			for (int j = 30; j < 33; ++j) {
-				if (Switch[j - 30] == 0) {
-					if (players[i].pos.X + 40 >= Block_local[j].x && players[i].pos.X + 40 <= Block_local[j].x + 35 &&
-						players[i].pos.Y + 70 >= Block_local[j].y && players[i].pos.Y + 70 <= Block_local[j].y + 35) {
-						Switch[j - 30] = 1;
-						push[j - 30] = i;
-					}
+		for (int j = 30; j < 33; ++j) {
+			if (Switch[j - 30] == 0) {
+				if (players[i].pos.X + 40 >= Block_local[j].x && players[i].pos.X + 40 <= Block_local[j].x + 35 &&
+					players[i].pos.Y + 70 >= Block_local[j].y && players[i].pos.Y + 70 <= Block_local[j].y + 35) {
+					Switch[j - 30] = 1;
+					push[j - 30] = i;
 				}
+			}
 
-				else if (players[push[j - 30]].pos.X + 40 < Block_local[j].x || players[i].pos.X + 40 > Block_local[j].x + 35) {
-					Switch[j - 30] = 0;
-					push[j - 30] = -1;
-				}
+			else if (players[push[j - 30]].pos.X + 40 < Block_local[j].x || players[i].pos.X + 40 > Block_local[j].x + 35) {
+				Switch[j - 30] = 0;
+				push[j - 30] = -1;
 			}
 		}
 	}
@@ -456,27 +458,6 @@ void MonsterPos(int num, int pos)
 
 void EventBlockPos(int num, int dis_l, int dis_r)
 {
-	/*if (Switch[num] == 1) {
-			if (MoveBlockTurn[num] % 2 == 0) {
-				if (MoveBlock_X[num] - players[player_code].charPos.X >= 0) {
-					MoveBlock_X[num] -= 1;
-				}
-
-				else {
-					MoveBlockTurn[num]++;
-				}
-			}
-
-			else {
-				if (MoveBlock_X[num] + players[player_code].charPos.X <= 1000) {
-					MoveBlock_X[num] += 1;
-				}
-
-				else {
-					MoveBlockTurn[num]++;
-				}
-			}
-		}*/
 	if (MoveBlockTurn[num] % 2 == 0) {
 		if (MoveBlock_X[num] >= dis_l) {
 			MoveBlock_X[num] -= 1;
@@ -496,6 +477,32 @@ void EventBlockPos(int num, int dis_l, int dis_r)
 			MoveBlockTurn[num]++;
 		}
 	}
+}
+
+void Restart()
+{
+	gameover = false;
+
+	SetEvent(gameStartEvent);
+
+	InitPlayer(0);
+	InitPlayer(1);
+	InitPlayer(2);
+
+	InitMonster();
+
+	KillChar - 1;
+	HitChar = -1;
+	DamageNum = 0;
+
+	for (int i = 0; i < 3; ++i) {
+		Switch[i] = 0;
+	}
+	
+	InitMoveBlock();
+
+	key = 1;
+	potal = 0;
 }
 
 DWORD WINAPI RecvThread(LPVOID arg)
@@ -615,7 +622,12 @@ DWORD WINAPI RecvThread(LPVOID arg)
 			send_struct.sceneNumber = 2;
 			retval = send(client_sock, (char*)&send_struct, sizeof(send_struct), 0);
 			printf("gameover\n");
-			break;
+
+			Sleep(3000);
+
+			send_struct.sceneNumber = 1;
+
+			Restart();
 		}
 
 		//printf("Monster_X[0]: %d\n", Monster_X[0]);

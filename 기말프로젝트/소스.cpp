@@ -258,8 +258,8 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 		scene_number = recv_struct.sceneNumber;
 		memcpy(players, recv_struct.players, sizeof(players));
 
-		if (scene_number == 2)
-			break;
+		/*if (scene_number == 2)
+			break;*/
 	}
 
 	//Exit
