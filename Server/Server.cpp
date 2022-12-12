@@ -424,6 +424,7 @@ void MonsterCollision()
 						if (protect == 300) {
 							protect = 0;
 							damagetemp = false;
+							DamageNum = 0;
 							HitChar = -1;
 						}
 					}

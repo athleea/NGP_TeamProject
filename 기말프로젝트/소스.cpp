@@ -16,6 +16,7 @@
 #include "Protocol.h"
 
 #define SERVERIP "127.0.0.1"
+//#define SERVERIP "172.30.1.21"
 #define BLOCKNUM 35
 using namespace std;
 
@@ -404,6 +405,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static BYTE hp;
 
 
+	static int damagetemp = 0;
+	static int counttemp=0;
+	int monstertemp = 0;
+	static bool once = false;
 
 	switch (iMsg) {
 	case WM_CREATE:
@@ -605,7 +610,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				Lobby.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 				WaitForSingleObject(hRecvInitData, INFINITE);
 				imgSprite[player_code].stand[count].Draw(mem1dc, 550, 400);
-				printf("wait..\n");
+				//printf("wait..\n");
 			}
 			break;
 		case 1:	// 게임시작
@@ -628,7 +633,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			Guide.Draw(mem1dc, 750 - charPos.X, 590 - charPos.Y, w_guide * 2 / 3, h_guide * 2 / 3, 0, 0, w_guide, h_guide);
 			Portal.Draw(mem1dc, Portal_X - charPos.X, Portal_Y - charPos.Y - h_Portal * 1 / 4, w_Portal * 1 / 4, h_Portal * 1 / 4, 0, 0, w_Portal, h_Portal);
 
-			printf("Switch[2]: %d\n", &Switch[2]);
+			//printf("Switch[2]: %d\n", &Switch[2]);
 
 			for (int i = 0; i < 2; ++i) {
 				if (i == 0) {
@@ -890,20 +895,29 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			}
 
 			// 2번만 출력되게 바꿔야함
-			damagecount++;
+			damagetemp = ++damagetemp % 6;
+			if (!damagetemp) {
+				damagecount = ++damagecount % 4;
+				if (DamageNum == 1 || (MonsterKill[0] == 1 && KillNum[0] == 1)|| (MonsterKill[1] == 1 && KillNum[1] == 1) || (MonsterKill[2] == 1 && KillNum[2] == 1))
+					counttemp = ++counttemp % 4;
+			}
+
 
 			if (DamageNum == 1) {
-				Damage[count].Draw(mem1dc, players[HitChar].pos.X - charPos.X, players[HitChar].pos.Y - charPos.Y, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
+				Damage[damagecount].Draw(mem1dc, players[HitChar].pos.X - charPos.X, players[HitChar].pos.Y - charPos.Y, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
 			}
+			if (counttemp == 3) DamageNum = 0;
 
 			for (int i = 0; i < 3; ++i) {
 				if (MonsterKill[i] == 1) {
 					if (KillNum[i] == 1) {
-						Damage[count].Draw(mem1dc, players[KillChar].pos.X - charPos.X, players[KillChar].pos.Y + 70 - charPos.Y, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
-
-						if (damagecount == 7) {	// 원래 9 말고 3
+						if (once == false) {
+							monstertemp = Monster_X[i];
+							once = true;
+						}
+						Damage[damagecount].Draw(mem1dc, monstertemp - charPos.X, Block_local[MonsterBlock[i]].y - 30 - charPos.Y, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
+						if (counttemp == 3) {
 							KillNum[i] = 0;
-							damagecount = 0;
 						}
 					}
 				}
