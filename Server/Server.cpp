@@ -30,6 +30,7 @@ int push[3] = { -1,-1,-1 };
 int key = 1;
 int NowBlock[3] = { 0 };
 int NowEblock[3] = { 0 };
+int NowChar[3] = { -1,-1,-1 };
 int KillChar = -1;
 int HitChar = -1;
 int DamageNum = 0;
@@ -385,9 +386,12 @@ void CharacterCollision()
 				players[i].pos.Y + 70 <= players[j].pos.Y + 30 && players[i].pos.Y + 70 >= players[j].pos.Y - 2) {
 				players[i].jump = 0;
 				players[i].CCollision = true;
+				NowChar[i] = j;
 			}
-			else
+			else if (players[i].pos.X + 50 < players[NowChar[i]].pos.X || players[i].pos.X + 50 > players[NowChar[i]].pos.X + 100) {
 				players[i].CCollision = false;
+				NowChar[i] = -1;
+			}
 		}
 	}
 }
