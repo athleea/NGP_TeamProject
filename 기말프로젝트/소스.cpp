@@ -50,7 +50,6 @@ struct PlayerInfo {
 	bool keyPress_D, keyPress_A;
 	BYTE left, right;
 	COORD pos;
-	COORD charPos;
 	BYTE hp;
 	BYTE characterCode;
 	bool jump;
@@ -622,11 +621,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			hp = players[player_code].hp;
 
 			charPos.X = clamp(0, pos.X - 640, 1280);
-			charPos.Y = clamp(-1200, pos.Y - 620, 620);
+			charPos.Y = clamp(-1200, pos.Y - 500, 620);
 
 			//printf("[%d] : (%d, %d) \r", player_code, pos.X, charPos.X);
 
-			BackGround.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0 + charPos.X, bh - 1600 + charPos.Y, 2560, 1600);
+			BackGround.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0 + charPos.X, bh - 1800 + charPos.Y, 2560, 1600);
 			imgGround.Draw(mem1dc, 0 - charPos.X, 130 - charPos.Y, rect.right, rect.bottom, 0, 0, gw, gh);
 			imgGround.Draw(mem1dc, rect.right - charPos.X, 130 - charPos.Y, rect.right, rect.bottom, 0, 0, gw, gh);
 
@@ -1112,7 +1111,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		if (Image_Number >= 0 && Image_Number < 4)
 			Image_Number++;
 
-		if (MouseX >= 750 - players[player_code].charPos.X && MouseX <= 750 - players[player_code].charPos.X + w_guide * 2 / 3 && MouseY >= 590 - players[player_code].charPos.Y && MouseY <= 590 - players[player_code].charPos.Y + h_guide * 2 / 3) {
+		if (MouseX >= 750 - charPos.X && MouseX <= 750 - charPos.X + w_guide * 2 / 3 && MouseY >= 590 - charPos.Y && MouseY <= 590 - charPos.Y + h_guide * 2 / 3) {
 			Image_Number = 5;
 		}
 

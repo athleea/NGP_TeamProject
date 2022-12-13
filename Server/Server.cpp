@@ -62,7 +62,6 @@ struct PlayerInfo {
 	bool keyPress_D, keyPress_A;
 	BYTE left, right;
 	COORD pos;
-	COORD charPos;
 	BYTE hp;
 	BYTE characterCode;
 	bool jump;
@@ -117,7 +116,6 @@ void InitPlayer(BYTE player_code)
 	else if (player_code == 2)
 		players[player_code].pos = { 430, 620 };
 
-	players[player_code].charPos = { 0, 0 };
 	players[player_code].characterCode = player_code;
 	players[player_code].left = 0;
 	players[player_code].right = 0;
@@ -199,19 +197,15 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 		break;
 	}
 
-	static bool jumptemp = false;
 	if (true == players[player_code].jump) {
-		if (jumptemp) jumptemp = false;
-		else if (!jumptemp) jumptemp = true;
 
-		if (jumptemp)
 			players[player_code].jumpCount++;
 
-		if (players[player_code].jumpCount < 10)
+		if (players[player_code].jumpCount < 15)
 			players[player_code].pos.Y -= 10;
-		else if (players[player_code].jumpCount < 19)
+		else if (players[player_code].jumpCount < 29)
 			players[player_code].pos.Y += 10;
-		else if (players[player_code].jumpCount >= 20) {
+		else if (players[player_code].jumpCount >= 30) {
 			players[player_code].jump = false;
 			players[player_code].jumpCount = 0;
 		}
@@ -219,7 +213,7 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 
 	if (true == players[player_code].keyPress_A) {
 		if (players[player_code].pos.X > 10) {
-			players[player_code].pos.X -= 5;
+			players[player_code].pos.X -= 7;
 		}
 		players[player_code].left = 1;
 	}
@@ -229,7 +223,7 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 
 	if (true == players[player_code].keyPress_D) {
 		if (players[player_code].pos.X < 2450) {
-			players[player_code].pos.X += 5;
+			players[player_code].pos.X += 7;
 		}
 		players[player_code].right = 1;
 	}
