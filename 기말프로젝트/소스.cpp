@@ -187,7 +187,6 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	retval = recv(sock, (char*)&player_code, sizeof(player_code), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) return  1;
 
-
 	retval = recv(sock, (char*)&recv_struct, sizeof(recv_struct), MSG_WAITALL);
 	if (retval == SOCKET_ERROR) {
 		return 1;
@@ -381,7 +380,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int protect;
 
 	static int Heart_Click = 0;
-	static int MapNum = 0;
+	static int MapNum = -1;
 
 	static int Block_localX = 50;
 	Block_local[23].y = 500;
@@ -504,7 +503,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		Clear[0].Load(L"Clear1.png");
 		Clear[1].Load(L"Clear2.png");
 		GameOver.Load(L"GameOver.png");
-		Map.Load(L"Map.png");
+		Map.Load(L"NewMap.jpg");
 
 		Damage[0].Load(L"Damage1.png");
 		Damage[1].Load(L"Damage2.png");
@@ -1001,16 +1000,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			}
 
 			if (MapNum == 1) {
-				Map.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
-			}
-
-			if (Image_Number == 7) {
-				if (ClearCount == 0) {
-					ClearCount = 1;
-				}
-				else ClearCount = 0;
-
-				Clear[ClearCount].Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
+				Map.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1440, 1008);
 			}
 
 			if (Image_Number == 8) {
@@ -1019,6 +1009,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			break;
 		case 2:	// 게임종료
 			GameOver.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
+			break;
+		case 3:
+			if (ClearCount == 0) {
+				ClearCount = 1;
+			}
+			else ClearCount = 0;
+
+			Clear[ClearCount].Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 			break;
 		default:
 			break;
@@ -1067,23 +1065,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				msg = CS_KEYDOWN_SPACE;
 				LeaveCriticalSection(&cs);
 			}
-
+			else if (wParam == 'M' || wParam == 'm') {
+				MapNum = -MapNum;
+			}
 			else if (wParam == 'A' || wParam == 'a') {
 				EnterCriticalSection(&cs);
 				msg = CS_KEYDOWN_A;
 				LeaveCriticalSection(&cs);
 			}
-
-
 			else if (wParam == 'D' || wParam == 'd') {
 				EnterCriticalSection(&cs);
 				msg = CS_KEYDOWN_D;
 				LeaveCriticalSection(&cs);
 			}
 			else if (wParam == 'W' || wParam == 'w') {
-				EnterCriticalSection(&cs);
-				msg = CS_KEYDOWN_W;
-				LeaveCriticalSection(&cs);
 				if (potal) {
 					if (Key_Image == 0) {
 						Image_Number = 7;

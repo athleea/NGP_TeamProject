@@ -179,8 +179,6 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 {
 	EnterCriticalSection(&cs);
 	switch (msg) {
-	case CS_KEYDOWN_W:
-		break;
 	case CS_KEYDOWN_A:
 		players[player_code].keyPress_A = true;
 		break;
@@ -197,7 +195,6 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 		players[player_code].keyPress_D = false;
 		break;
 	}
-
 	LeaveCriticalSection(&cs);
 }
 
@@ -270,8 +267,11 @@ void Gravity()
 			players[i].pos.Y = 620;
 			players[i].MCollision = true;
 		}
+
 		else if (!players[i].MCollision && !players[i].CCollision && !players[i].ECollision) {
-			players[i].pos.Y += 5;
+			//players[i].pos.Y += 10;
+			players[i].jump = true;
+			players[i].jumpCount = 30;
 		}
 	}
 }
@@ -317,10 +317,12 @@ void MapCollision()
 			}
 		}
 
-		if (/*key == 0 &&*/ players[i].pos.X + 40 >= Block_local[33].x && players[i].pos.X + 40 <= Block_local[33].x + 150 &&
+		if (key == 0 && players[i].pos.X + 40 >= Block_local[33].x && players[i].pos.X + 40 <= Block_local[33].x + 150 &&
 			players[i].pos.Y + 70 >= Block_local[33].y - 150 && players[i].pos.Y + 70 <= Block_local[33].y + 100) {
 			potal = true;
+			gameover = true;
 		}
+
 		if (players[i].pos.X + 40 >= Block_local[34].x && players[i].pos.X + 40 <= Block_local[34].x + 50 &&
 			players[i].pos.Y + 70 >= Block_local[34].y && players[i].pos.Y <= Block_local[34].y + 50) {
 			key = 0;
@@ -467,7 +469,7 @@ void Restart()
 	InitMoveBlock();
 
 	key = 1;
-	potal = 0;
+	potal = false;
 }
 
 DWORD WINAPI RecvThread(LPVOID arg)
@@ -578,15 +580,14 @@ DWORD WINAPI RecvThread(LPVOID arg)
 		memcpy(send_struct.players, players, sizeof(players));
 
 		retval = send(client_sock, (char*)&send_struct, sizeof(send_struct), 0);
-
 		if (retval == SOCKET_ERROR) {
 			break;
 		}
 
 		if (gameover == true) {
-			send_struct.sceneNumber = 2;
+			if (true == potal) send_struct.sceneNumber = 3;
+			else send_struct.sceneNumber = 2;
 			retval = send(client_sock, (char*)&send_struct, sizeof(send_struct), 0);
-			printf("gameover\n");
 
 			Sleep(3000);
 
@@ -594,10 +595,6 @@ DWORD WINAPI RecvThread(LPVOID arg)
 
 			Restart();
 		}
-
-		//printf("Monster_X[0]: %d\n", Monster_X[0]);
-
-		Sleep(20);
 	}
 
 	ResetEvent(gameStartEvent);
@@ -609,20 +606,16 @@ DWORD WINAPI RecvThread(LPVOID arg)
 
 DWORD WINAPI CollisionSendThread(LPVOID arg)
 {
-	printf("enter collsion\n");
-	int retval;
-	SOCKET client_sock = (SOCKET)arg;
-
 	while (1) {
 		EnterCriticalSection(&cs);
-		if (ready > 2) {
+		if (ready == 3) {
 			LeaveCriticalSection(&cs);
 			break;
 		}
 		LeaveCriticalSection(&cs);
 	}
 
-	Sleep(3000);
+	Sleep(1000);
 	// 게임 시작
 	SetEvent(gameStartEvent);
 
@@ -632,7 +625,7 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 			LeaveCriticalSection(&cs);
 			break;
 		}
-
+		LeaveCriticalSection(&cs);
 
 		if (Switch[0] != 0 || Switch[1] != 0) {
 			EventBlockPos(1, MoveBlockDis_L[1], MoveBlockDis_R[1]);
@@ -648,54 +641,53 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 
 		for (int i = 0; i < MAX_PLAYER; ++i)
 		{
+			EnterCriticalSection(&cs);
 			if (true == players[i].jump) {
-
 				players[i].jumpCount++;
-
-				if (players[i].jumpCount < 15)
+				if (players[i].jumpCount < 20)
 					players[i].pos.Y -= 10;
-				else if (players[i].jumpCount < 29)
+				else if (players[i].jumpCount < 39)
 					players[i].pos.Y += 10;
-				else if (players[i].jumpCount >= 30) {
+				else if (players[i].jumpCount >= 40) {
 					players[i].jump = false;
 					players[i].jumpCount = 0;
 				}
 			}
-
 			if (true == players[i].keyPress_A) {
 				if (players[i].pos.X > 10) {
-					players[i].pos.X -= 7;
+					players[i].pos.X -= 8;
 				}
 				players[i].left = 1;
 			}
 			else {
 				players[i].left = 0;
 			}
-
 			if (true == players[i].keyPress_D) {
 				if (players[i].pos.X < 2450) {
-					players[i].pos.X += 7;
+					players[i].pos.X += 8;
 				}
 				players[i].right = 1;
 			}
 			else {
 				players[i].right = 0;
 			}
-
+			LeaveCriticalSection(&cs);
 		}
-
 		MapCollision();
 		CharacterCollision();
 		Gravity();
 		MonsterCollision();
 
 		CheckGameEnd();
-		LeaveCriticalSection(&cs);
 
-		Sleep(10);
+		Sleep(17);
 	}
 
 	ResetEvent(gameStartEvent);
+	EnterCriticalSection(&cs);
+	ready = 0;
+	LeaveCriticalSection(&cs);
+
 	return 0;
 }
 
@@ -742,24 +734,24 @@ int main()
 			//err_display("accept()");
 			break;
 		}
+		EnterCriticalSection(&cs);
 		if (clientCount < 3) {
 			hThread = CreateThread(NULL, 0, RecvThread, (LPVOID)client_sock, 0, NULL);
 			if (hThread == NULL) { closesocket(client_sock); }
 			else { CloseHandle(hThread); }
 
-			EnterCriticalSection(&cs);
 			clientCount++;
-			LeaveCriticalSection(&cs);
+
 		}
 		else if (clientCount > 3) {
 			closesocket(client_sock);
 		}
-
+		
 		if (clientCount == 3) {
-			hThread = CreateThread(NULL, 0, CollisionSendThread, (LPVOID)client_sock, 0, NULL);
+			hThread = CreateThread(NULL, 0, CollisionSendThread, NULL, 0, NULL);
 			if (hThread == NULL) { CloseHandle(hThread); }
 		}
-
+		LeaveCriticalSection(&cs);
 		printf("Access : %d client\n", clientCount);
 	}
 
