@@ -13,7 +13,6 @@ FILE* fp;
 
 HANDLE gameStartEvent;
 CRITICAL_SECTION cs;
-SOCKET sockManager[MAX_PLAYER];
 
 int ready = 0;
 bool gameover = false;
@@ -91,7 +90,6 @@ typedef struct SendStruct {
 	BYTE sceneNumber;
 } Send;
 
-void CheckGameEnd();
 void CheckGameEnd()
 {
 	for (int i = 0; i < MAX_PLAYER; ++i)
@@ -102,7 +100,7 @@ void CheckGameEnd()
 			return;
 		}
 }
-void InitPlayer(BYTE player_code);
+
 void InitPlayer(BYTE player_code)
 {
 	if (player_code == 0)
@@ -148,7 +146,6 @@ void InitMoveBlock()
 	}
 }
 
-BYTE RandomCharacter();
 BYTE RandomCharacter()
 {
 	BYTE temp{};
@@ -439,7 +436,43 @@ void EventBlockPos(int num, int dis_l, int dis_r)
 		}
 	}
 }
-
+void CharacterPos()
+{
+	for (int i = 0; i < MAX_PLAYER; ++i)
+	{
+		EnterCriticalSection(&cs);
+		if (true == players[i].jump) {
+			players[i].jumpCount++;
+			if (players[i].jumpCount < 40)
+				players[i].pos.Y -= 5;
+			else if (players[i].jumpCount < 79)
+				players[i].pos.Y += 5;
+			else if (players[i].jumpCount >= 80) {
+				players[i].jump = false;
+				players[i].jumpCount = 0;
+			}
+		}
+		if (true == players[i].keyPress_A) {
+			if (players[i].pos.X > 10) {
+				players[i].pos.X -= 4;
+			}
+			players[i].left = 1;
+		}
+		else {
+			players[i].left = 0;
+		}
+		if (true == players[i].keyPress_D) {
+			if (players[i].pos.X < 2450) {
+				players[i].pos.X += 4;
+			}
+			players[i].right = 1;
+		}
+		else {
+			players[i].right = 0;
+		}
+		LeaveCriticalSection(&cs);
+	}
+}
 void Restart()
 {
 	gameover = false;
@@ -459,14 +492,14 @@ void Restart()
 	for (int i = 0; i < 3; ++i) {
 		Switch[i] = 0;
 	}
-	
+
 	InitMoveBlock();
 
 	key = 1;
 	potal = false;
 }
 
-DWORD WINAPI RecvThread(LPVOID arg)
+DWORD WINAPI SendRecvThread(LPVOID arg)
 {
 	int retval;
 	SOCKET client_sock = (SOCKET)arg;
@@ -481,9 +514,6 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	inet_ntop(AF_INET, &clientaddr.sin_addr, addr, sizeof(addr));
 
 	BYTE player_code = RandomCharacter();
-
-	sockManager[player_code] = client_sock;
-
 
 	InitPlayer(player_code);
 
@@ -599,7 +629,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 	return 0;
 }
 
-DWORD WINAPI CollisionSendThread(LPVOID arg)
+DWORD WINAPI CollisionThread(LPVOID arg)
 {
 	while (1) {
 		EnterCriticalSection(&cs);
@@ -622,6 +652,8 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 		}
 		LeaveCriticalSection(&cs);
 
+		CharacterPos();
+
 		if (Switch[0] != 0 || Switch[1] != 0) {
 			EventBlockPos(1, MoveBlockDis_L[1], MoveBlockDis_R[1]);
 		}
@@ -634,40 +666,6 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 			MonsterPos(i, MonsterBlock[i]);
 		}
 
-		for (int i = 0; i < MAX_PLAYER; ++i)
-		{
-			EnterCriticalSection(&cs);
-			if (true == players[i].jump) {
-				players[i].jumpCount++;
-				if (players[i].jumpCount < 40)
-					players[i].pos.Y -= 5;
-				else if (players[i].jumpCount < 79)
-					players[i].pos.Y += 5;
-				else if (players[i].jumpCount >= 80) {
-					players[i].jump = false;
-					players[i].jumpCount = 0;
-				}
-			}
-			if (true == players[i].keyPress_A) {
-				if (players[i].pos.X > 10) {
-					players[i].pos.X -= 4;
-				}
-				players[i].left = 1;
-			}
-			else {
-				players[i].left = 0;
-			}
-			if (true == players[i].keyPress_D) {
-				if (players[i].pos.X < 2450) {
-					players[i].pos.X += 4;
-				}
-				players[i].right = 1;
-			}
-			else {
-				players[i].right = 0;
-			}
-			LeaveCriticalSection(&cs);
-		}
 		MapCollision();
 		CharacterCollision();
 		Gravity();
@@ -703,10 +701,10 @@ int main()
 	serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	serveraddr.sin_port = htons(SERVERPORT);
 	retval = bind(listen_sock, (struct sockaddr*)&serveraddr, sizeof(serveraddr));
-	if (retval == SOCKET_ERROR);// err_quit("bind()");
+	if (retval == SOCKET_ERROR) return 1;
 
 	retval = listen(listen_sock, SOMAXCONN);
-	if (retval == SOCKET_ERROR);// err_quit("listen()");
+	if (retval == SOCKET_ERROR) return 1;
 
 	HANDLE hThread;
 
@@ -731,7 +729,7 @@ int main()
 		}
 		EnterCriticalSection(&cs);
 		if (clientCount < 3) {
-			hThread = CreateThread(NULL, 0, RecvThread, (LPVOID)client_sock, 0, NULL);
+			hThread = CreateThread(NULL, 0, SendRecvThread, (LPVOID)client_sock, 0, NULL);
 			if (hThread == NULL) { closesocket(client_sock); }
 			else { CloseHandle(hThread); }
 
@@ -741,9 +739,9 @@ int main()
 		else if (clientCount > 3) {
 			closesocket(client_sock);
 		}
-		
+
 		if (clientCount == 3) {
-			hThread = CreateThread(NULL, 0, CollisionSendThread, NULL, 0, NULL);
+			hThread = CreateThread(NULL, 0, CollisionThread, NULL, 0, NULL);
 			if (hThread == NULL) { CloseHandle(hThread); }
 		}
 		LeaveCriticalSection(&cs);

@@ -1,10 +1,6 @@
 ﻿#define _CRT_SECURE_NO_WARNINGS
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
-#ifdef _DEBUG
-#pragma comment(linker, "/entry:WinMainCRTStartup /subsystem:console" )
-#endif
-
 #include <atlImage.h>
 #include <Windows.h>
 #pragma comment(lib, "winmm")
@@ -64,7 +60,7 @@ CRITICAL_SECTION cs;
 PlayerInfo players[MAX_PLAYER];
 BYTE msg = -1;
 BYTE player_code;
-static COORD charPos = { 0,0 };
+
 static int Monster_X[3] = { 0 };
 static int MonsterTurn[3] = { 0, 0, 1 };
 static int MonsterBlock[3] = { 2,6,9 };
@@ -77,14 +73,13 @@ int KillChar = 0;
 int HitChar = 0;
 int DamageNum = 0;
 
-static int Key_Image = 1; // Key ��ġ ���� �ʿ�
+static int Key_Image = 1;
 static int Key_X;
 static int Key_Y;
-static int Portal_X;		// Portal ��ġ ���� �ʿ�
+static int Portal_X;
 static int Portal_Y;
 int potal;
 
-bool gamestart = false;
 bool gameover = false;
 
 //int Block_X = 250;
@@ -191,7 +186,7 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	if (retval == SOCKET_ERROR) {
 		return 1;
 	}
-	
+
 
 	for (int i = 0; i < 3; ++i) {
 		MonsterTurn[i] = recv_struct.MonsterTurn[i];
@@ -211,7 +206,7 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 		MoveBlockTurn[i] = recv_struct.MoveBlockTurn[i];
 		MoveBlock_X[i] = recv_struct.MoveBlock_X[i];
 	}
-	
+
 	scene_number = recv_struct.sceneNumber;
 	memcpy(players, recv_struct.players, sizeof(players));
 
@@ -373,10 +368,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int CharNum = 1;
 	static int click = 0;
 
-	static int Monster1Turn;	
-	static int Monster2Turn;	
+	static int Monster1Turn;
+	static int Monster2Turn;
 
-	static int hit;	
+	static int hit;
 	static int protect;
 
 	static int Heart_Click = 0;
@@ -404,7 +399,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 
 	static int damagetemp = 0;
-	static int counttemp=0;
+	static int counttemp = 0;
 	static int monstertemp = 0;
 	static bool once = false;
 
@@ -598,7 +593,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		switch (scene_number)
 		{
 		case 0:	// 접속대기
-			if(click == 0)
+			if (click == 0)
 				Start.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 			else {
 				Lobby.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
@@ -647,7 +642,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				}
 			}*/
 
-			for (int i = 0; i < BLOCKNUM -2; i++) {
+			for (int i = 0; i < BLOCKNUM - 2; i++) {
 				if (i < 14)
 					Block.Draw(mem1dc, Block_local[i].x - charPos.X, Block_local[i].y - charPos.Y, Block_local[i].width, 60, 0, 0, w_block, h_block);
 				else if ((i >= 14 && i < 17) || (i > 17 && i < 20))
@@ -888,7 +883,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			damagetemp = ++damagetemp % 6;
 			if (!damagetemp) {
 				damagecount = ++damagecount % 4;
-				if (DamageNum == 1 || (MonsterKill[0] == 1 && KillNum[0] == 1)|| (MonsterKill[1] == 1 && KillNum[1] == 1) || (MonsterKill[2] == 1 && KillNum[2] == 1))
+				if (DamageNum == 1 || (MonsterKill[0] == 1 && KillNum[0] == 1) || (MonsterKill[1] == 1 && KillNum[1] == 1) || (MonsterKill[2] == 1 && KillNum[2] == 1))
 					counttemp = ++counttemp % 4;
 			}
 
@@ -1047,8 +1042,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				LeaveCriticalSection(&cs);
 			}
 		}
-		
-		
+
+
 		break;
 	case WM_KEYDOWN:
 		if (scene_number == 1) {
