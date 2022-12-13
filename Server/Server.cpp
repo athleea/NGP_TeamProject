@@ -8,7 +8,8 @@ using namespace std;
 
 #define BLOCKNUM 35
 
-int clientCount = 0;
+int ClientNum = 0;
+bool AllClientReady = false;
 FILE* fp;
 
 HANDLE gameStartEvent;
@@ -212,7 +213,7 @@ void SendFile(SOCKET client_sock)
 	if (retval == SOCKET_ERROR) {
 		err_display("send()");
 		EnterCriticalSection(&cs);
-		clientCount--;
+		ClientNum--;
 		LeaveCriticalSection(&cs);
 		return;
 	}
@@ -232,7 +233,7 @@ void SendFile(SOCKET client_sock)
 			if (retval == SOCKET_ERROR) {
 				printf("Send Failed\n");
 				EnterCriticalSection(&cs);
-				clientCount--;
+				ClientNum--;
 				LeaveCriticalSection(&cs);
 				return;
 			}
@@ -523,7 +524,7 @@ DWORD WINAPI SendRecvThread(LPVOID arg)
 	retval = send(client_sock, (char*)&player_code, sizeof(player_code), 0);
 	if (retval == SOCKET_ERROR) {
 		EnterCriticalSection(&cs);
-		clientCount--;
+		ClientNum--;
 		LeaveCriticalSection(&cs);
 		return 1;
 	}
@@ -550,7 +551,7 @@ DWORD WINAPI SendRecvThread(LPVOID arg)
 	retval = send(client_sock, (char*)&send_struct, sizeof(send_struct), 0);
 	if (retval == SOCKET_ERROR) {
 		EnterCriticalSection(&cs);
-		clientCount--;
+		ClientNum--;
 		LeaveCriticalSection(&cs);
 		return 1;
 	}
@@ -562,6 +563,9 @@ DWORD WINAPI SendRecvThread(LPVOID arg)
 
 	EnterCriticalSection(&cs);
 	ready++;
+	if (ready == 3) {
+		AllClientReady = true;
+	}
 	LeaveCriticalSection(&cs);
 
 
@@ -573,7 +577,7 @@ DWORD WINAPI SendRecvThread(LPVOID arg)
 	retval = send(client_sock, (char*)&send_struct.sceneNumber, sizeof(send_struct.sceneNumber), 0);
 	if (retval == SOCKET_ERROR) {
 		EnterCriticalSection(&cs);
-		clientCount--;
+		ClientNum--;
 		LeaveCriticalSection(&cs);
 		return 1;
 	}
@@ -627,7 +631,7 @@ DWORD WINAPI SendRecvThread(LPVOID arg)
 
 	ResetEvent(gameStartEvent);
 	EnterCriticalSection(&cs);
-	clientCount--;
+	ClientNum--;
 	LeaveCriticalSection(&cs);
 	return 0;
 }
@@ -636,7 +640,7 @@ DWORD WINAPI CollisionThread(LPVOID arg)
 {
 	while (1) {
 		EnterCriticalSection(&cs);
-		if (ready == 3) {
+		if (AllClientReady) {
 			LeaveCriticalSection(&cs);
 			break;
 		}
@@ -649,7 +653,7 @@ DWORD WINAPI CollisionThread(LPVOID arg)
 
 	while (1) { // CheckGameEnd()
 		EnterCriticalSection(&cs);
-		if (clientCount != 3) {
+		if (ClientNum != 3) {
 			LeaveCriticalSection(&cs);
 			break;
 		}
@@ -731,24 +735,24 @@ int main()
 			break;
 		}
 		EnterCriticalSection(&cs);
-		if (clientCount < 3) {
+		if (ClientNum < 3) {
 			hThread = CreateThread(NULL, 0, SendRecvThread, (LPVOID)client_sock, 0, NULL);
 			if (hThread == NULL) { closesocket(client_sock); }
 			else { CloseHandle(hThread); }
 
-			clientCount++;
+			ClientNum++;
 
 		}
-		else if (clientCount > 3) {
+		else if (ClientNum > 3) {
 			closesocket(client_sock);
 		}
 
-		if (clientCount == 3) {
+		if (ClientNum == 3) {
 			hThread = CreateThread(NULL, 0, CollisionThread, NULL, 0, NULL);
 			if (hThread == NULL) { CloseHandle(hThread); }
 		}
 		LeaveCriticalSection(&cs);
-		printf("Access : %d client\n", clientCount);
+		printf("Access : %d client\n", ClientNum);
 	}
 
 	closesocket(listen_sock);

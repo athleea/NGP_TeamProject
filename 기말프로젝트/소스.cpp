@@ -12,7 +12,6 @@
 #include "Protocol.h"
 
 char* SERVERIP = (char*)"127.0.0.1";
-//#define SERVERIP "127.0.0.1"
 #define BLOCKNUM 35
 using namespace std;
 
@@ -179,7 +178,6 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 	if (retval == SOCKET_ERROR) {
 		return 1;
 	}
-
 
 	for (int i = 0; i < 3; ++i) {
 		MonsterTurn[i] = recv_struct.MonsterTurn[i];
@@ -370,8 +368,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	static int MapNum = -1;
 
 	static int Block_localX = 50;
-	Block_local[23].y = 500;
-	Block_local[23].width = 100;
 	static int MoveBlock;
 	
 	static int KillMonster1;
