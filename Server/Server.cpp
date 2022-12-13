@@ -328,7 +328,7 @@ void MapCollision()
 				}
 			}
 
-			else if (players[push[j - 30]].pos.X + 40 < Block_local[j].x || players[i].pos.X + 40 > Block_local[j].x + 35) {
+			else if (players[push[j - 30]].pos.X + 40 < Block_local[j].x || players[push[j - 30]].pos.X + 40 > Block_local[j].x + 35) {
 				Switch[j - 30] = 0;
 				push[j - 30] = -1;
 			}
