@@ -11,7 +11,8 @@
 #include "global.h"
 #include "Protocol.h"
 
-#define SERVERIP "127.0.0.1"
+char* SERVERIP = (char*)"127.0.0.1";
+//#define SERVERIP "127.0.0.1"
 #define BLOCKNUM 35
 using namespace std;
 
@@ -256,6 +257,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 	HWND hWnd;
 	MSG Message;
 	WNDCLASSEX WndClass;
+
+	if (lpszCmdParam) SERVERIP = (char*)lpszCmdParam;
 
 	WndClass.cbSize = sizeof(WndClass);
 	WndClass.style = CS_HREDRAW | CS_VREDRAW;
