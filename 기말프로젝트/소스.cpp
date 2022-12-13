@@ -594,7 +594,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			hp = players[player_code].hp;
 
 			charPos.X = clamp(0, pos.X - 640, 1280);
-			charPos.Y = clamp(-1200, pos.Y - 500, 620);
+			charPos.Y = clamp(-700, pos.Y - 500, 620);
 
 			BackGround.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0 + charPos.X, bh - 1800 + charPos.Y, 2560, 1600);
 			imgGround.Draw(mem1dc, 0 - charPos.X, 130 - charPos.Y, rect.right, rect.bottom, 0, 0, gw, gh);
