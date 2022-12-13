@@ -66,7 +66,7 @@ struct PlayerInfo {
 	BYTE hp;
 	BYTE characterCode;
 	bool jump;
-	BYTE jumpCount;
+	int jumpCount;
 	bool MCollision;
 	bool CCollision;
 	bool ECollision;
@@ -337,17 +337,20 @@ void MapCollision()
 }
 
 void CharacterCollision()
-{
+{ 
 	for (int i = 0; i < MAX_PLAYER; ++i) {
 		for (int j = 0; j < MAX_PLAYER; ++j) {
 			if (i == j) continue;
-			if (players[i].pos.X + 40 >= players[j].pos.X && players[i].pos.X + 40 <= players[j].pos.X + 100 &&
+			if (players[i].pos.X + 40 >= players[j].pos.X && players[i].pos.X + 40 <= players[j].pos.X + 60 &&
 				players[i].pos.Y + 70 <= players[j].pos.Y + 30 && players[i].pos.Y + 70 >= players[j].pos.Y - 2) {
-				players[i].jump = 0;
+				if (!(NowChar[i] == j && players[i].jump)) {
+					players[i].jump = 0;
+					players[i].jumpCount = 0;
+				}
 				players[i].CCollision = true;
 				NowChar[i] = j;
 			}
-			else if (players[i].pos.X + 50 < players[NowChar[i]].pos.X || players[i].pos.X + 50 > players[NowChar[i]].pos.X + 100) {
+			else if (players[i].pos.X + 50 < players[NowChar[i]].pos.X || players[i].pos.X > players[NowChar[i]].pos.X + 50) {
 				players[i].CCollision = false;
 				NowChar[i] = -1;
 			}

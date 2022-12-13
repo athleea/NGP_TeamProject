@@ -49,7 +49,7 @@ struct PlayerInfo {
 	BYTE hp;
 	BYTE characterCode;
 	bool jump;
-	BYTE jumpCount;
+	int jumpCount;
 	bool MCollision;
 	bool CCollision;
 	bool ECollision;
@@ -153,9 +153,6 @@ void ReadFile(SOCKET sock)
 	Key_X = Block_local[34].x;
 	Key_Y = Block_local[34].y;
 
-	/*cout << Block_local[26].x <<  " " << Block_local[26].y << endl;
-	cout << Block_local[27].x <<  " " << Block_local[27].y << endl;*/
-
 }
 
 Recv recv_struct;
@@ -252,8 +249,6 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 		scene_number = recv_struct.sceneNumber;
 		memcpy(players, recv_struct.players, sizeof(players));
 
-		/*if (scene_number == 2)
-			break;*/
 	}
 
 	//Exit
@@ -381,11 +376,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	Block_local[23].y = 500;
 	Block_local[23].width = 100;
 	static int MoveBlock;
-	/*
-	static int Monster1_X;	//	�Ʒ��� ���� x��ǥ
-	static int Monster2_X;	//	���� ���� x��ǥ
-	*/
-
+	
 	static int KillMonster1;
 	static int KillMonster2;
 
@@ -630,17 +621,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				}
 			}
 
-			/*for (int i = 0; i < 2; ++i) {
-				if (i == 0 && Switch[2] != 0) {
-					Blockr.Draw(mem1dc, MoveBlock_X[i] - charPos.X, Block_local[MoveBlockPos[i]].y - charPos.Y, Block_local[MoveBlockPos[i]].width, 60, 0, 0, w_block, h_block);
-				}
-
-				else {
-					if (Switch[0] != 0 || Switch[1] != 0) {
-						Blocko.Draw(mem1dc, MoveBlock_X[i] - charPos.X, Block_local[MoveBlockPos[i]].y - charPos.Y, Block_local[MoveBlockPos[i]].width, 60, 0, 0, w_block, h_block);
-					}
-				}
-			}*/
 
 			for (int i = 0; i < BLOCKNUM - 2; i++) {
 				if (i < 14)
@@ -662,45 +642,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				}
 			}
 
-
-			/*if (GetPixel(mem2dc, players[player_code].pos.X + 40, players[player_code].pos.Y + 40) != RGB(254, 0, 0)) {
-				Switch[0] = 0;
-				Eblock[0].Draw(mem1dc, 600 - charPos.X, 660 - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
-			}
-
-			else if (GetPixel(mem2dc, players[player_code].pos.X + 40, players[player_code].pos.Y) == RGB(254, 0, 0)) {
-				Switch[0] = 1;
-				Eblock[1].Draw(mem1dc, 600 - charPos.X, 660 - charPos.Y, w_eblock / 3, h_eblock / 3, 0, 0, w_eblock, h_eblock);
-			}*/
-
 			SelectObject(mem2dc, hBitmap2);
 
-
-			/*
-			// ���� �̵� �ڵ� (���� ��� x)
-			if (Switch == 1) {
-				if (MoveBlock % 2 == 0) {
-					if (Block_localX - charPos.X >= 0) {
-						Block_localX -= 5;
-					}
-
-					else {
-						MoveBlock++;
-					}
-				}
-
-				else {
-					if (Block_localX + charPos.X <= rect.right) {
-						Block_localX += 5;
-					}
-
-					else {
-						MoveBlock++;
-					}
-				}
-			}
-			*/
-			//	���Ͱ� ���� ����, ������ ���� �����ϸ� ���� �ٲٴ� �ڵ�
 			SelectObject(mem1dc, hBitmap);
 
 			for (int i = 0; i < 3; ++i) {
@@ -714,140 +657,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 					}
 				}
 			}
-
-			/*if (KillMonster1 == 0) {
-				if (Monster1_X < Block_local[2].x - charPos.X || Monster1_X + w_monster[count] / 2 > Block_local[2].x - charPos.X + Block_local[2].width) {
-					if (Monster1_X < Block_local[2].x - charPos.X) {
-						Monster1_X = Block_local[2].x - charPos.X;
-					}
-
-					if (Monster1_X + w_monster[count] / 2 > Block_local[2].x - charPos.X + Block_local[2].width) {
-						Monster1_X = Block_local[2].x - charPos.X + Block_local[2].width - w_monster[count] / 2;
-					}
-
-					Monster1Turn++;
-				}
-
-				//	���Ͱ� ���������� �̵��� ��, ĳ���Ͱ� �����ʿ��� �ε����� ��Ʈ ����... ������ ���� ���� ���̰� �ұ� ���� ��
-
-				if (Monster1Turn % 2 == 0) {
-					Monster_L[count].Draw(mem1dc, Monster1_X, Block_local[2].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
-
-					if (players[player_code].pos.X + w1_stand[count] / 2 > Monster1_X && players[player_code].pos.X < Monster1_X && players[player_code].pos.Y + h1_stand[count] / 2 > Block_local[2].y - charPos.Y - h_monster[count] / 2 && players[player_code].pos.Y + h1_stand[count] / 2 < Block_local[2].y - charPos.Y + 60 && jump == 0) {
-						hit++;
-						DamageNum = 1;
-						SetTimer(hWnd, 1, 700, NULL);
-
-						if (hit != 0) {
-							if (hit == 1) {
-								heart--;
-							}
-
-							protect++;
-						}
-
-						//	protect�� 20�� �Ǹ� ���� ����, �ε��� ��� �� ����
-
-						if (protect == 20) {
-							protect = 0;
-							hit = 0;
-						}
-					}
-
-					Monster1_X -= 5;
-				}
-
-				if (Monster1Turn % 2 != 0) {
-					Monster_R[count].Draw(mem1dc, Monster1_X, Block_local[2].y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
-
-					if (players[player_code].pos.X < Monster1_X + h_monster[count] / 2 && players[player_code].pos.X + w1_stand[count] / 2 > Monster1_X && players[player_code].pos.Y + h1_stand[count] / 2 > Block_local[2].y - charPos.Y - h_monster[count] / 2 && players[player_code].pos.Y + h1_stand[count] / 2 < Block_local[2].y - charPos.Y + 60 && jump == 0) {
-						hit++;
-						DamageNum = 1;
-						SetTimer(hWnd, 1, 700, NULL);
-
-						if (hit != 0) {
-							if (hit == 1) {
-								heart--;
-							}
-
-							protect++;
-						}
-
-						if (protect == 20) {
-							protect = 0;
-							hit = 0;
-						}
-					}
-
-					Monster1_X += 5;
-				}
-			}
-
-			//	���� �Ȱ��� �����ε� ���� ����
-
-			if (KillMonster2 == 0) {
-				if (Monster2_X < Block_local[15].x - charPos.X || Monster2_X + w_monster[count] / 2 > Block_local[15].x - charPos.X + Block_local[15].width) {
-					if (Monster2_X < Block_local[15].x - charPos.X) {
-						Monster2_X = Block_local[15].x - charPos.X;
-					}
-
-					if (Monster2_X + w_monster[count] / 2 > Block_local[15].x - Block_local[15].width) {
-						Monster2_X = Block_local[15].x - Block_local[15].width - w_monster[count] / 2;
-					}
-
-					Monster2Turn++;
-				}
-
-				if (Monster2Turn % 2 != 0) {
-					Monster_L[count].Draw(mem1dc, Monster2_X, Block_local[15].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
-
-					if (players[player_code].pos.X + w1_stand[count] / 2 > Monster2_X && players[player_code].pos.X < Monster2_X && players[player_code].pos.Y + w1_stand[count] / 2 > Block_local[15].y - charPos.Y - h_monster[count] / 2 && players[player_code].pos.Y + h1_stand[count] / 2 < Block_local[15].y - charPos.Y + 60 && jump == 0) {
-						hit++;
-						DamageNum = 1;
-						SetTimer(hWnd, 1, 700, NULL);
-
-						if (hit != 0) {
-							if (hit == 1) {
-								heart--;
-							}
-
-							protect++;
-						}
-
-						if (protect == 20) {
-							protect = 0;
-							hit = 0;
-						}
-					}
-
-					Monster2_X -= 5;
-				}
-
-				if (Monster2Turn % 2 == 0) {
-					Monster_R[count].Draw(mem1dc, Monster2_X, Block_local[15].y - charPos.Y - h_monster[count] / 2, w_monster[count] / 2, h_monster[count] / 2, 0, 0, w_monster[count], h_monster[count]);
-
-					if (players[player_code].pos.X < Monster2_X + h_monster[count] / 2 && players[player_code].pos.X + w1_stand[count] / 2 > Monster2_X && players[player_code].pos.Y + h1_stand[count] / 2 > Block_local[15].y - charPos.Y - h_monster[count] / 2 && players[player_code].pos.Y + h1_stand[count] / 2 < Block_local[15].y - charPos.Y + 60 && jump == 0) {
-						hit++;
-						DamageNum = 1;
-						SetTimer(hWnd, 1, 700, NULL);
-
-						if (hit != 0) {
-							if (hit == 1) {
-								heart--;
-							}
-
-							protect++;
-						}
-
-						if (protect == 20) {
-							protect = 0;
-							hit = 0;
-						}
-					}
-
-					Monster2_X += 5;
-				}
-			}*/
 
 			if (Key_Image == 1)
 				Key.Draw(mem1dc, Key_X - charPos.X, Key_Y - charPos.Y, w_Key * 1 / 2, h_Key * 1 / 2, 0, 0, w_Key, h_Key);
@@ -907,69 +716,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 					}
 				}
 			}
-
-			/*
-			if (jump == 1) {
-				jumpcount++;
-
-				if (jumpcount < 10) {
-					y -= 5;
-					if (CharY <= 800)
-						CharY -= 8;
-					else if (CharY > 800)
-						CharY -= 14;
-				}
-
-				else if (jumpcount < 20) {
-					y += 5;
-
-					if (CharY <= 800)
-						CharY += 8;
-					else if (CharY > 800)
-						CharY += 10;
-
-				}
-
-				else {
-					if (GetPixel(mem1dc, x + 40, y + 70) == RGB(37, 176, 77)) {
-						OnBlock = 1;
-						jumpcount = 0;
-						jump = 0;
-					}
-					else {
-						jumpcount = 10;
-					}
-				}
-			}
-
-
-			if (GetPixel(mem1dc, x + 40, y + 70) == RGB(37, 176, 77) || y == 620) {
-				OnBlock = 1;
-				jump = 0;
-				jumpcount = 0;
-			}
-
-			if (GetPixel(mem1dc, x + 40, y + 70) == RGB(243, 216, 19)) {
-				if (y < Block_local[7].y - CharY && y > Block_local[15].y - CharY) {
-					KillMonster1 = 1;
-					KillNum = 1;
-				}
-				else {
-					KillMonster2 = 1;
-					KillNum = 1;
-				}
-			}
-
-			// �߷� ó�� �Ϸ��� �ߴ� �κ�
-			if (jump == 0 && GetPixel(mem1dc, x, y + 70) != RGB(37, 176, 77) && y != 620) {
-				OnBlock = 0;
-			}
-
-			if (OnBlock == 0 && jump == 0) {
-				jump = 1;
-				jumpcount = 10;
-			}
-			*/
 
 			if (hp == 3) {
 				Heart.Draw(mem1dc, 10, 10, w_heart / 120, h_heart / 120, 0, 0, w_heart, h_heart);
