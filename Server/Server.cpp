@@ -198,40 +198,6 @@ void ProcessPacket(BYTE msg, BYTE player_code)
 		break;
 	}
 
-	if (true == players[player_code].jump) {
-
-			players[player_code].jumpCount++;
-
-		if (players[player_code].jumpCount < 15)
-			players[player_code].pos.Y -= 10;
-		else if (players[player_code].jumpCount < 29)
-			players[player_code].pos.Y += 10;
-		else if (players[player_code].jumpCount >= 30) {
-			players[player_code].jump = false;
-			players[player_code].jumpCount = 0;
-		}
-	}
-
-	if (true == players[player_code].keyPress_A) {
-		if (players[player_code].pos.X > 10) {
-			players[player_code].pos.X -= 7;
-		}
-		players[player_code].left = 1;
-	}
-	else {
-		players[player_code].left = 0;
-	}
-
-	if (true == players[player_code].keyPress_D) {
-		if (players[player_code].pos.X < 2450) {
-			players[player_code].pos.X += 7;
-		}
-		players[player_code].right = 1;
-	}
-	else {
-		players[player_code].right = 0;
-	}
-
 	LeaveCriticalSection(&cs);
 }
 
@@ -666,7 +632,7 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 			LeaveCriticalSection(&cs);
 			break;
 		}
-		LeaveCriticalSection(&cs);
+
 
 		if (Switch[0] != 0 || Switch[1] != 0) {
 			EventBlockPos(1, MoveBlockDis_L[1], MoveBlockDis_R[1]);
@@ -675,16 +641,56 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 		if (Switch[2] != 0) {
 			EventBlockPos(0, MoveBlockDis_L[0], MoveBlockDis_R[0]);
 		}
-		
+
 		for (int i = 0; i < 3; ++i) {
 			MonsterPos(i, MonsterBlock[i]);
 		}
+
+		for (int i = 0; i < MAX_PLAYER; ++i)
+		{
+			if (true == players[i].jump) {
+
+				players[i].jumpCount++;
+
+				if (players[i].jumpCount < 15)
+					players[i].pos.Y -= 10;
+				else if (players[i].jumpCount < 29)
+					players[i].pos.Y += 10;
+				else if (players[i].jumpCount >= 30) {
+					players[i].jump = false;
+					players[i].jumpCount = 0;
+				}
+			}
+
+			if (true == players[i].keyPress_A) {
+				if (players[i].pos.X > 10) {
+					players[i].pos.X -= 7;
+				}
+				players[i].left = 1;
+			}
+			else {
+				players[i].left = 0;
+			}
+
+			if (true == players[i].keyPress_D) {
+				if (players[i].pos.X < 2450) {
+					players[i].pos.X += 7;
+				}
+				players[i].right = 1;
+			}
+			else {
+				players[i].right = 0;
+			}
+
+		}
+
 		MapCollision();
 		CharacterCollision();
 		Gravity();
 		MonsterCollision();
 
 		CheckGameEnd();
+		LeaveCriticalSection(&cs);
 
 		Sleep(10);
 	}
