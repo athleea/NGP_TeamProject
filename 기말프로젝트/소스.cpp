@@ -21,7 +21,7 @@
 using namespace std;
 
 LPCTSTR lpszClass = L"Window Class Name";
-LPCTSTR lpszWindowName = L"windows program";
+LPCTSTR lpszWindowName = L"NGP_Project";
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
 DWORD WINAPI CommunicationThread(LPVOID);
@@ -405,7 +405,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
 	static int damagetemp = 0;
 	static int counttemp=0;
-	int monstertemp = 0;
+	static int monstertemp = 0;
 	static bool once = false;
 
 	switch (iMsg) {
@@ -578,10 +578,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		}
 
 
-		/*Monster1_X = Block_local[2].x - charPos.X + Block_local[2].width - 72;
-		Monster2_X = Block_local[15].x - charPos.X;*/
-
-
 		SetTimer(hWnd, 0, 50, NULL);
 
 		break;
@@ -622,16 +618,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			charPos.X = clamp(0, pos.X - 640, 1280);
 			charPos.Y = clamp(-1200, pos.Y - 500, 620);
 
-			//printf("[%d] : (%d, %d) \r", player_code, pos.X, charPos.X);
-
 			BackGround.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0 + charPos.X, bh - 1800 + charPos.Y, 2560, 1600);
 			imgGround.Draw(mem1dc, 0 - charPos.X, 130 - charPos.Y, rect.right, rect.bottom, 0, 0, gw, gh);
 			imgGround.Draw(mem1dc, rect.right - charPos.X, 130 - charPos.Y, rect.right, rect.bottom, 0, 0, gw, gh);
 
 			Guide.Draw(mem1dc, 750 - charPos.X, 590 - charPos.Y, w_guide * 2 / 3, h_guide * 2 / 3, 0, 0, w_guide, h_guide);
 			Portal.Draw(mem1dc, Portal_X - charPos.X, Portal_Y - charPos.Y - h_Portal * 1 / 4, w_Portal * 1 / 4, h_Portal * 1 / 4, 0, 0, w_Portal, h_Portal);
-
-			//printf("Switch[2]: %d\n", &Switch[2]);
 
 			for (int i = 0; i < 2; ++i) {
 				if (i == 0) {
@@ -913,7 +905,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 							monstertemp = Monster_X[i];
 							once = true;
 						}
-						Damage[damagecount].Draw(mem1dc, monstertemp - charPos.X, Block_local[MonsterBlock[i]].y - 30 - charPos.Y, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
+						Damage[damagecount].Draw(mem1dc, monstertemp, Block_local[MonsterBlock[i]].y - 30 - charPos.Y, w_damage[count], h_damage[count], 0, 0, w_damage[count], h_damage[count]);
 						if (counttemp == 3) {
 							KillNum[i] = 0;
 						}
@@ -1100,7 +1092,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		click++;
 
 		if (click == 2) {
-			//PlaySound(L"OST.wav", NULL, SND_ASYNC | SND_LOOP);
+			PlaySound(L"OST.wav", NULL, SND_ASYNC | SND_LOOP);
 		}
 
 		if (Image_Number >= 0 && Image_Number < 4)

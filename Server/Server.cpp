@@ -3,6 +3,7 @@
 #include <fstream>
 #include <vector>
 #include <iostream>
+
 using namespace std;
 
 #define BLOCKNUM 35
@@ -73,12 +74,6 @@ struct PlayerInfo {
 };
 
 PlayerInfo players[MAX_PLAYER];
-
-//struct PlayerCollision {
-//	BYTE OnBlock;
-//};
-//
-//PlayerCollision pCollision[MAX_PLAYER];
 
 typedef struct SendStruct {
 	PlayerInfo players[MAX_PLAYER];
@@ -269,9 +264,8 @@ void Gravity()
 		}
 
 		else if (!players[i].MCollision && !players[i].CCollision && !players[i].ECollision) {
-			//players[i].pos.Y += 10;
 			players[i].jump = true;
-			players[i].jumpCount = 30;
+			players[i].jumpCount = 60;
 		}
 	}
 }
@@ -596,6 +590,7 @@ DWORD WINAPI RecvThread(LPVOID arg)
 			Restart();
 		}
 	}
+	putchar('\n');
 
 	ResetEvent(gameStartEvent);
 	EnterCriticalSection(&cs);
@@ -644,18 +639,18 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 			EnterCriticalSection(&cs);
 			if (true == players[i].jump) {
 				players[i].jumpCount++;
-				if (players[i].jumpCount < 20)
-					players[i].pos.Y -= 10;
-				else if (players[i].jumpCount < 39)
-					players[i].pos.Y += 10;
-				else if (players[i].jumpCount >= 40) {
+				if (players[i].jumpCount < 40)
+					players[i].pos.Y -= 5;
+				else if (players[i].jumpCount < 79)
+					players[i].pos.Y += 5;
+				else if (players[i].jumpCount >= 80) {
 					players[i].jump = false;
 					players[i].jumpCount = 0;
 				}
 			}
 			if (true == players[i].keyPress_A) {
 				if (players[i].pos.X > 10) {
-					players[i].pos.X -= 8;
+					players[i].pos.X -= 4;
 				}
 				players[i].left = 1;
 			}
@@ -664,7 +659,7 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 			}
 			if (true == players[i].keyPress_D) {
 				if (players[i].pos.X < 2450) {
-					players[i].pos.X += 8;
+					players[i].pos.X += 4;
 				}
 				players[i].right = 1;
 			}
@@ -680,7 +675,7 @@ DWORD WINAPI CollisionSendThread(LPVOID arg)
 
 		CheckGameEnd();
 
-		Sleep(17);
+		Sleep(10);
 	}
 
 	ResetEvent(gameStartEvent);
