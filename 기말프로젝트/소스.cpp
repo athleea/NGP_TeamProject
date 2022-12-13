@@ -12,7 +12,6 @@
 #include "Protocol.h"
 
 #define SERVERIP "127.0.0.1"
-//#define SERVERIP "172.30.1.21"
 #define BLOCKNUM 35
 using namespace std;
 
@@ -82,9 +81,6 @@ int potal;
 
 bool gameover = false;
 
-//int Block_X = 250;
-//int Block_W = 200;
-
 typedef struct RecvStruct {
 	PlayerInfo players[MAX_PLAYER];
 	int Monster_X[3];
@@ -152,7 +148,6 @@ void ReadFile(SOCKET sock)
 	Portal_Y = Block_local[33].y;
 	Key_X = Block_local[34].x;
 	Key_Y = Block_local[34].y;
-
 }
 
 Recv recv_struct;
@@ -248,7 +243,6 @@ DWORD WINAPI CommunicationThread(LPVOID arg)
 		potal = recv_struct.potal;
 		scene_number = recv_struct.sceneNumber;
 		memcpy(players, recv_struct.players, sizeof(players));
-
 	}
 
 	//Exit
@@ -563,7 +557,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			h_monster[i] = Monster_R[i].GetHeight();
 		}
 
-
 		SetTimer(hWnd, 0, 50, NULL);
 
 		break;
@@ -590,7 +583,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				Lobby.Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 				WaitForSingleObject(hRecvInitData, INFINITE);
 				imgSprite[player_code].stand[count].Draw(mem1dc, 550, 400);
-				//printf("wait..\n");
 			}
 			break;
 		case 1:	// 게임시작
@@ -620,7 +612,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 					Blocko.Draw(mem1dc, MoveBlock_X[i] - charPos.X, Block_local[MoveBlockPos[i]].y - charPos.Y, Block_local[MoveBlockPos[i]].width, 60, 0, 0, w_block, h_block);
 				}
 			}
-
 
 			for (int i = 0; i < BLOCKNUM - 2; i++) {
 				if (i < 14)
@@ -688,7 +679,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				Dialog[Image_Number].Draw(mem1dc, 0, 0, rect.right, rect.bottom, 0, 0, 1280, 800);
 			}
 
-			// 2번만 출력되게 바꿔야함
 			damagetemp = ++damagetemp % 6;
 			if (!damagetemp) {
 				damagecount = ++damagecount % 4;
@@ -788,7 +778,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 				LeaveCriticalSection(&cs);
 			}
 		}
-
 
 		break;
 	case WM_KEYDOWN:
